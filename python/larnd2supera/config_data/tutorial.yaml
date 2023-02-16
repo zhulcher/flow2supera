@@ -1,0 +1,34 @@
+# ===============
+# tutorial.yaml
+# ===============
+
+LogLevel:        WARNING
+ActiveDetectors: ["TPCActive_shape"]
+MaxSegmentSize:  0.03
+PropertyKeyword: 'ndlar'
+TileLayout: ''
+DetectorProperties: ''
+ElectronEnergyThreshold: 5
+
+BBoxAlgorithm: BBoxInteraction
+BBoxConfig:
+    LogLevel:   WARNING
+    Seed:       -1
+    BBoxSize:   [2048,2048,2048]
+    VoxelSize:  [0.5,0.5,0.5]
+    BBoxBottom: [-1000,-1000,-1000]
+    #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
+    #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
+    
+LabelAlgorithm: LArTPCMLReco3D
+LabelConfig:
+    LogLevel: WARNING
+    DeltaSize:     3
+    ComptonSize:  10
+    LEScatterSize: 2
+    TouchDistance: 1
+    StoreLEScatter:   True
+    SemanticPriority: [1,0,2,3,4]
+    EnergyDepositThreshold: 0.0
+    #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
+    #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
