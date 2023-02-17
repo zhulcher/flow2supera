@@ -27,7 +27,7 @@ setup(
     scripts=['bin/run_larnd2supera.py'],
     packages=['larnd2supera','larnd2supera.pdg_data','larnd2supera.config_data'],
     package_dir={'': 'python'},
-    package_data={'larnd2supera': ['pdg_data/pdg.npz']},
+    package_data={'larnd2supera': ['pdg_data/pdg.npz','config_data/*.yaml']},
     install_requires=[
         'numpy',
         'scikit-build',
