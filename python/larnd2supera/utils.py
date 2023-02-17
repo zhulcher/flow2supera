@@ -8,6 +8,7 @@ import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
 from LarpixParser import event_parser as EventParser
 from larcv import larcv
+import pandas as pd
 
 def get_larnd2supera(config_key):
 
@@ -122,12 +123,13 @@ def run_supera(out_file='larcv.root',
         time_event = time.time() - t0
         print("--- running driver  {:.2e} seconds ---".format(time_event))
 
-        logger['event_id'].append(input_data.event_id)
-        logger['time_read'    ].append(time_read)
-        logger['time_convert' ].append(time_convert)
-        logger['time_generate'].append(time_generate)
-        logger['time_store'   ].append(time_store)
-        logger['time_event'   ].append(time_event)
+        if save_log:
+            logger['event_id'].append(input_data.event_id)
+            logger['time_read'    ].append(time_read)
+            logger['time_convert' ].append(time_convert)
+            logger['time_generate'].append(time_generate)
+            logger['time_store'   ].append(time_store)
+            logger['time_event'   ].append(time_event)
 
     writer.finalize()
 
