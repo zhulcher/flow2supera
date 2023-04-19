@@ -1,6 +1,7 @@
 import h5py as h5
 import numpy as np
 from LarpixParser import event_parser as EventParser
+from LarpixParser.util import detector_configuration
 
 class InputEvent:
     event_id = -1
@@ -10,17 +11,23 @@ class InputEvent:
     trajectories = None
     t0 = -1
     first_track_id = -1
+    event_separator = ''
 
 class InputReader:
     
-    def __init__(self,input_files=None):
+    def __init__(self,input_files=None,event_separator='eventID'):
         self._mc_packets_assn = None
         self._packets = None
         self._tracks = None
         self._trajectories = None
+        self._vertices = None
         self._packet2event = None
         self._event_ids = None
         self._event_t0s = None
+        self._if_spill = False
+
+        if event_separator == "spillID":
+            self._if_spill = True
         
         if input_files:
             self.ReadFile(input_files)
@@ -53,6 +60,7 @@ class InputReader:
         packets = []
         tracks  = []
         trajectories = []
+        vertices = []
         
         if type(input_files) == str:
             input_files = [input_files]
@@ -63,15 +71,17 @@ class InputReader:
                 packets.append(fin['packets'][:])
                 tracks.append(fin['tracks'][:])
                 trajectories.append(fin['trajectories'][:])
+                vertices.append(fin['vertices'][:])
                 if verbose: print('Read-in:',f)
                 
         self._mc_packets_assn = np.concatenate(mc_packets_assn)
         self._packets = np.concatenate(packets)
         self._tracks  = np.concatenate(tracks )
         self._trajectories = np.concatenate(trajectories)
+        self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks)
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, ifspill=self._if_spill)
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
@@ -89,14 +99,27 @@ class InputReader:
             print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
         
         # create a list of corresponding T0s
-        t0_group = EventParser.get_t0(self._packets)
+        #t0_group = EventParser.get_t0(self._packets)
+
+        t0_group = np.empty(shape=(0,))
+        if self._if_spill:
+            # TODO Hard coding alert!
+            detector = '2x2' 
+            run_config,_ = detector_configuration(detector)
+            t0_group = EventParser.get_t0_spill(self._vertices,run_config)
+            # Match true t0s with reconstructed events
+            t0_group = [t0_group[i] for i in self._event_ids]
+        else:
+            t0_group = EventParser.get_t0(self._packets)
 
         # Assert strong assumptions here
         # Assumption 1: currently we assume T0 is same for all readout groups
-        self._event_t0s = self._correct_t0s(np.unique(t0_group,axis=1),len(self._event_ids))
-        if not self._event_t0s.shape[1]==1:
-            print('    ERROR: found an event with non-unique T0s across readout groups.')
-            raise ValueError('Current code implementation assumes unique T0 per event!')
+        #self._event_t0s = self._correct_t0s(np.unique(t0_group,axis=1),len(self._event_ids))
+        #if not self._event_t0s.shape[1]==1:
+        #    print('    ERROR: found an event with non-unique T0s across readout groups.')
+        #    raise ValueError('Current code implementation assumes unique T0 per event!')
+
+        self._event_t0s = np.unique(t0_group)
 
         # Assumption 2: the number of readout should be same as the number of valid Event IDs
         if not len(self._event_ids) == self._event_t0s.shape[0]:
@@ -117,7 +140,7 @@ class InputReader:
         
         return GetEntry(index_loc[0])
         
-    def GetEntry(self,index):
+    def GetEntry(self,index,event_separator):
         
         if index >= len(self._event_ids):
             print('Entry',index,'is above allowed entry index (<%d)' % len(self._event_ids))
@@ -126,6 +149,8 @@ class InputReader:
         
         # Now return event info for the found index
         result = InputEvent()
+
+        result.event_separator = event_separator
         
         result.event_id = self._event_ids[index]
         result.t0 = self._event_t0s[index]
@@ -135,12 +160,12 @@ class InputReader:
         result.packets = self._packets[mask]
         result.mc_packets_assn = self._mc_packets_assn[mask]
         
-        mask = self._tracks['eventID'] == result.event_id
+        mask = self._tracks[event_separator] == result.event_id
         result.tracks = self._tracks[mask]
         
         result.first_track_id = mask.nonzero()[0][0]
         
-        mask = self._trajectories['eventID'] == result.event_id
+        mask = self._trajectories[event_separator] == result.event_id
         result.trajectories = self._trajectories[mask]
         
         return result  

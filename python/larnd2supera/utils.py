@@ -27,11 +27,12 @@ def run_supera(out_file='larcv.root',
                config_key='',
                num_events=-1,
                num_skip=0,
+               event_separator='eventID',
                save_log=None):
 
     start_time = time.time()
 
-    reader = larnd2supera.reader.InputReader(in_file)
+    reader = larnd2supera.reader.InputReader(in_file,event_separator)
     writer = get_iomanager(out_file)
     driver = get_larnd2supera(config_key)
 
@@ -64,7 +65,7 @@ def run_supera(out_file='larcv.root',
         num_events -= 1 
 
         t0 = time.time()
-        input_data = reader.GetEntry(entry)
+        input_data = reader.GetEntry(entry,event_separator)
         time_read = time.time() - t0
 
         print('Entry {} Event ID {}'.format(entry,input_data.event_id))

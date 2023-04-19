@@ -1,0 +1,35 @@
+# ===============
+# 2x2.yaml
+# ===============
+
+LogLevel:        DEBUG
+ActiveDetectors: ["TPCActive_shape"]
+MaxSegmentSize:  0.03
+PropertyKeyword: '2x2'
+TileLayout: ''
+DetectorProperties: ''
+ElectronEnergyThreshold: 5
+
+BBoxAlgorithm: BBoxInteraction
+BBoxConfig:
+    LogLevel:   DEBUG
+    Seed:       -1
+    BBoxSize:   [120,120,120]
+    BBoxTop:    [60,103,60]
+    BBoxBottom: [-60,-17,-60]
+    VoxelSize:  [0.4,0.4,0.4]
+    #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
+    #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
+
+LabelAlgorithm: LArTPCMLReco3D
+LabelConfig:
+    LogLevel: DEBUG
+    DeltaSize:     3
+    ComptonSize:  10
+    LEScatterSize: 2
+    TouchDistance: 1
+    StoreLEScatter:   True
+    SemanticPriority: [1,0,2,3,4]
+    EnergyDepositThreshold: 0.0
+    #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
+    #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
