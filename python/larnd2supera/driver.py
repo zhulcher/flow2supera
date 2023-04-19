@@ -20,6 +20,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         self._edeps_unassociated = []
         self._log=None
         self._electron_energy_threshold=0
+        self._estimate_pt_time=True
         print("Initialized SuperaDriver class")
 
 
@@ -75,8 +76,25 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
+            self._estimate_pt_time = cfg.get('EstimatePointTime',
+                self._estimate_pt_time)
         super().ConfigureFromFile(fname)
 
+
+    def PoCA(self, a, b, pt, scalar=False):
+        
+        ab = b - a
+        
+        t = (pt - a) * ab
+        
+        if t <= 0.: 
+            return 0. if scalar else a
+        else:
+            denom = ab * ab
+            if t >= denom:
+                return 1. if scalar else b
+            else:
+                return t/denom if scalar else a + ab * t/denom
 
     def ConfigureFromText(self,txt):
         cfg=yaml.load(txt,Loader=Loader)
@@ -186,6 +204,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         if verbose:
             print('track_ids after:\n', track_ids)
 
+        # Use these to define a segment if self._estimate_pt_time is True
+        seg_pt0   = supera.Point3D()
+        seg_pt1   = supera.Point3D()
+        target_pt = supera.Point3D()
+
         mm2cm = 0.1 # For converting packet x,y,z values
         for ip, packet in enumerate(data.packets):
             if verbose:
@@ -210,7 +233,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     self._log['bad_adc'][-1]+=1
                 edep = supera.EDep()
                 edep.x,edep.y,edep.z,edep.e = x[ip]*mm2cm, y[ip]*mm2cm, z[ip]*mm2cm, dE
-                edep.t    = packet_track['t'] 
+                edep.t    = packet_track['t0'] 
                 edep.dedx = packet_track['dEdx']
                 self._edeps_unassociated.append(edep)
                 if not self._log is None:
@@ -241,11 +264,48 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     print('Multiply dE {} by fraction {}'.format(packet_track['dE'], packet_fractions[t]))
                 #edep.e    = packet_track['dE'] * packet_fractions[t]
                 edep.e    = dE[ip] * packet_fractions[t]
-                edep.t    = packet_track['t'] 
                 edep.dedx = packet_track['dEdx']
 
+                if not self._estimate_pt_time:
+                    edep.t    = packet_track['t0'] 
+                    print('raw:',edep.t,'...',edep.x,edep.y,edep.z)
+                else:
+                    # FIXME 2023-04-18 larndsim flip x and z as of this date.
+                    seg_pt0.x = packet_track['z_start']
+                    seg_pt0.y = packet_track['y_start']
+                    seg_pt0.z = packet_track['x_start']
+                    seg_pt1.x = packet_track['z_end']
+                    seg_pt1.y = packet_track['y_end']
+                    seg_pt1.z = packet_track['x_end']
+                    target_pt.x = edep.x
+                    target_pt.y = edep.y 
+                    target_pt.z = edep.z 
+
+                    #print('Segment',packet_track['segment_id'],'Track',packet_track['trackID'])
+                    #print('  (%.2f %.2f %.2f) ... (%.2f %.2f %.2f) => (%.2f %.2f %.2f)' % (target_pt.x,target_pt.y,target_pt.z,seg_pt0.x, seg_pt0.y, seg_pt0.z, seg_pt1.x, seg_pt1.y, seg_pt1.z))
+                    #print('  time:', packet_track['t0_start'],'=>',packet_track['t0_end'])
+                    if packet_track['t0_start'] < packet_track['t0_end']:
+                        frac = self.PoCA(seg_pt0,seg_pt1,target_pt,scalar=True)
+                        edep.t = packet_track['t0_start'] + frac*(packet_track['t0_end'  ] - packet_track['t0_start'])
+                    else:
+                        frac = self.PoCA(seg_pt1,seg_pt0,target_pt,scalar=True)
+                        edep.t = packet_track['t0_end'  ] + frac*(packet_track['t0_start'] - packet_track['t0_end'  ])
+                    #print('  est:',edep.t,'...',edep.x,edep.y,edep.z,'...',frac)
+
+                #import numpy as np
+                #print('t0',packet_track['t0'],'t0_start',packet_track['t0_start'],'t0_end',packet_track['t0_end'])
+                #print('t',packet_track['t'],'t_start',packet_track['t_start'],'t_end',packet_track['t_end'])
+                #print(np.dtype(packet_track))
+                #for t in np.dtype(packet_track):
+                #    print(t)
+                #print(packet_track[0])
+                #print(packet_track)
+                #help(packet_track)
+                #import sys
+                #sys.exit(1)
+
                 # register EDep
-                if edep.t >= 0:
+                if packet_track['t'] >= 0:
                     supera_event[self._trackid2idx[int(packet_track['trackID'])]].pcloud.push_back(edep)
 
                 if not self._log is None:
