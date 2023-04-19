@@ -52,8 +52,6 @@ if not larnd2supera.config.get_config(data.config):
     print('Invalid configuration option argument:',data.config)
     sys.exit(3)
 
-print('[RUN] event separator:', data.event_separator)
-
 larnd2supera.utils.run_supera(out_file=data.output_filename,
     in_file=args[0],
     config_key=data.config,
