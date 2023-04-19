@@ -10,17 +10,23 @@ class InputEvent:
     trajectories = None
     t0 = -1
     first_track_id = -1
+    event_separator = ''
 
 class InputReader:
     
-    def __init__(self,input_files=None):
+    def __init__(self,input_files=None,event_separator='eventID'):
         self._mc_packets_assn = None
         self._packets = None
         self._tracks = None
         self._trajectories = None
+        self._vertices = None
         self._packet2event = None
         self._event_ids = None
         self._event_t0s = None
+        self._if_spill = False
+
+        if event_separator == "spillID":
+            self._if_spill = True
         
         if input_files:
             self.ReadFile(input_files)
@@ -53,6 +59,7 @@ class InputReader:
         packets = []
         tracks  = []
         trajectories = []
+        vertices = []
         
         if type(input_files) == str:
             input_files = [input_files]
@@ -63,15 +70,17 @@ class InputReader:
                 packets.append(fin['packets'][:])
                 tracks.append(fin['tracks'][:])
                 trajectories.append(fin['trajectories'][:])
+                trajectories.append(fin['vertices'][:])
                 if verbose: print('Read-in:',f)
                 
         self._mc_packets_assn = np.concatenate(mc_packets_assn)
         self._packets = np.concatenate(packets)
         self._tracks  = np.concatenate(tracks )
         self._trajectories = np.concatenate(trajectories)
+        self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks)
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, ifspill=self._if_spill)
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
