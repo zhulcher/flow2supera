@@ -15,8 +15,6 @@ parser.add_option("-s", "--skip", dest="skip", metavar="INT", default=0,
     help="number of first events to skip")
 parser.add_option("-l", "--log", dest="log_file", metavar="FILE", default='',
     help="the name of a log file to be created. ")
-parser.add_option("-e", "--event_separator", dest="event_separator", metavar="SEP", default='eventID',
-    help="which event separator to use from larnd-sim, eventID (default) or spillID")
 
 (data, args) = parser.parse_args()
 
@@ -58,5 +56,4 @@ larnd2supera.utils.run_supera(out_file=data.output_filename,
     num_events=int(data.num_events),
     num_skip=int(data.skip),
     save_log=data.log_file,
-    event_separator=data.event_separator
     )

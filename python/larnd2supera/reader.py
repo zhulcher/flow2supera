@@ -15,7 +15,7 @@ class InputEvent:
 
 class InputReader:
     
-    def __init__(self,input_files=None,event_separator='eventID'):
+    def __init__(self,parser_run_config, input_files=None):
         self._mc_packets_assn = None
         self._packets = None
         self._tracks = None
@@ -25,9 +25,7 @@ class InputReader:
         self._event_ids = None
         self._event_t0s = None
         self._if_spill = False
-
-        if event_separator == "spillID":
-            self._if_spill = True
+        self._run_config = parser_run_config
         
         if input_files:
             self.ReadFile(input_files)
@@ -81,7 +79,7 @@ class InputReader:
         self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, ifspill=self._if_spill)
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, self._run_config['ifspill'])
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
@@ -99,14 +97,9 @@ class InputReader:
             print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
         
         # create a list of corresponding T0s
-        #t0_group = EventParser.get_t0(self._packets)
-
         t0_group = np.empty(shape=(0,))
-        if self._if_spill:
-            # TODO Hard coding alert!
-            detector = '2x2' 
-            run_config,_ = detector_configuration(detector)
-            t0_group = EventParser.get_t0_spill(self._vertices,run_config)
+        if self._run_config['ifspill']:
+            t0_group = EventParser.get_t0_spill(self._vertices,self._run_config)
             # Match true t0s with reconstructed events
             t0_group = [t0_group[i] for i in self._event_ids]
         else:
@@ -140,7 +133,7 @@ class InputReader:
         
         return GetEntry(index_loc[0])
         
-    def GetEntry(self,index,event_separator):
+    def GetEntry(self,index):
         
         if index >= len(self._event_ids):
             print('Entry',index,'is above allowed entry index (<%d)' % len(self._event_ids))
@@ -150,7 +143,7 @@ class InputReader:
         # Now return event info for the found index
         result = InputEvent()
 
-        result.event_separator = event_separator
+        result.event_separator = self._run_config['event_separator']
         
         result.event_id = self._event_ids[index]
         result.t0 = self._event_t0s[index]
@@ -160,12 +153,12 @@ class InputReader:
         result.packets = self._packets[mask]
         result.mc_packets_assn = self._mc_packets_assn[mask]
         
-        mask = self._tracks[event_separator] == result.event_id
+        mask = self._tracks[self._run_config['event_separator']] == result.event_id
         result.tracks = self._tracks[mask]
         
         result.first_track_id = mask.nonzero()[0][0]
         
-        mask = self._trajectories[event_separator] == result.event_id
+        mask = self._trajectories[self._run_config['event_separator']] == result.event_id
         result.trajectories = self._trajectories[mask]
         
         return result  

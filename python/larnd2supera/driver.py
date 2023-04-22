@@ -24,6 +24,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         print("Initialized SuperaDriver class")
 
 
+    def parser_run_config(self):
+        return self._run_config
+
+
     def log(self,data_holder):
 
         for key in self.LOG_KEYS:
@@ -31,6 +35,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 raise KeyError(f'Key {key} exists in the log data holder already.')
             data_holder[key]=[]
         self._log = data_holder
+
 
     def LoadPropertyConfigs(self,cfg_dict):
 
@@ -65,6 +70,14 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             self._geom_dict  = LarpixParser.util.load_geom_dict(cfg_dict['TileLayout'])
             self._run_config = LarpixParser.util.get_run_config(cfg_dict['DetectorProperties'])
 
+        # Event separator default value needs to be set.
+        # We repurpose "run_config" of EventParser to hold this attribute.
+        self._run_config['event_separator'] = 'eventID'
+        # Apply run config modification if requested
+        run_config_mod = cfg_dict.get('ParserRunConfig',None)
+        if run_config_mod:
+            for key,val in run_config_mod.items():
+                self._run_config[key]=val
         return True
 
 
@@ -165,7 +178,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
         #    and store in pcloud
-        x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config)
+        x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
         if verbose:
             print('Got x,y,z,dE = ', x, y, z, dE)
 
@@ -271,6 +284,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     print('raw:',edep.t,'...',edep.x,edep.y,edep.z)
                 else:
                     # FIXME 2023-04-18 larndsim flip x and z as of this date.
+                    # Note: edep's xyz come from the EventParser which takes the larndsim coordinates.
+                    #       This xyz does not need to be flipped.
+                    #       The packet_track (which comes from edepsim) coordinates need to be flipped 
+                    #       to match with the larndsim's (and hence EventParser's) coordinates.
                     seg_pt0.x = packet_track['z_start']
                     seg_pt0.y = packet_track['y_start']
                     seg_pt0.z = packet_track['x_start']
@@ -278,8 +295,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     seg_pt1.y = packet_track['y_end']
                     seg_pt1.z = packet_track['x_end']
                     target_pt.x = edep.x
-                    target_pt.y = edep.y 
-                    target_pt.z = edep.z 
+                    target_pt.y = edep.y
+                    target_pt.z = edep.z
 
                     #print('Segment',packet_track['segment_id'],'Track',packet_track['trackID'])
                     #print('  (%.2f %.2f %.2f) ... (%.2f %.2f %.2f) => (%.2f %.2f %.2f)' % (target_pt.x,target_pt.y,target_pt.z,seg_pt0.x, seg_pt0.y, seg_pt0.z, seg_pt1.x, seg_pt1.y, seg_pt1.z))
@@ -349,14 +366,14 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
         p.energy_init = np.sqrt(pow(larnd2supera.pdg2mass.pdg2mass(p.pdg),2)+pow(p.px,2)+pow(p.py,2)+pow(p.pz,2))
-        p.vtx    = supera.Vertex(trajectory['xyz_start'][0]*mm2cm, 
-                                 trajectory['xyz_start'][1]*mm2cm, 
-                                 trajectory['xyz_start'][2]*mm2cm, 
+        p.vtx    = supera.Vertex(trajectory['xyz_start'][0], 
+                                 trajectory['xyz_start'][1], 
+                                 trajectory['xyz_start'][2], 
                                  trajectory['t_start']
         )
-        p.end_pt = supera.Vertex(trajectory['xyz_end'][0]*mm2cm, 
-                                 trajectory['xyz_end'][1]*mm2cm,
-                                 trajectory['xyz_end'][2]*mm2cm, 
+        p.end_pt = supera.Vertex(trajectory['xyz_end'][0], 
+                                 trajectory['xyz_end'][1],
+                                 trajectory['xyz_end'][2], 
                                  trajectory['t_end']
         )
 

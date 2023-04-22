@@ -2,17 +2,21 @@
 # 2x2.yaml
 # ===============
 
-LogLevel:        DEBUG
+LogLevel:        INFO
+EventSeparator:  'spillID'
 ActiveDetectors: ["TPCActive_shape"]
 MaxSegmentSize:  0.03
 PropertyKeyword: '2x2'
 TileLayout: ''
 DetectorProperties: ''
+ParserRunConfig:
+    ifspill: True
+    event_separator: 'spillID'
 ElectronEnergyThreshold: 5
 
 BBoxAlgorithm: BBoxInteraction
 BBoxConfig:
-    LogLevel:   DEBUG
+    LogLevel:   WARNING
     Seed:       -1
     BBoxSize:   [120,120,120]
     BBoxTop:    [60,103,60]
@@ -23,7 +27,7 @@ BBoxConfig:
 
 LabelAlgorithm: LArTPCMLReco3D
 LabelConfig:
-    LogLevel: DEBUG
+    LogLevel: WARNING
     DeltaSize:     3
     ComptonSize:  10
     LEScatterSize: 2
