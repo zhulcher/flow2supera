@@ -79,7 +79,7 @@ class InputReader:
         self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, self._run_config['ifspill'])
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks)
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
@@ -98,12 +98,11 @@ class InputReader:
         
         # create a list of corresponding T0s
         t0_group = np.empty(shape=(0,))
-        if self._run_config['ifspill']:
-            t0_group = EventParser.get_t0_spill(self._vertices,self._run_config)
-            # Match true t0s with reconstructed events
-            t0_group = [t0_group[i] for i in self._event_ids]
-        else:
-            t0_group = EventParser.get_t0(self._packets)
+        
+        t0_group = EventParser.get_t0_event(self._vertices,self._run_config)
+        # Match true t0s with reconstructed events
+        t0_group = [t0_group[i] for i in self._event_ids]
+
 
         # Assert strong assumptions here
         # Assumption 1: currently we assume T0 is same for all readout groups

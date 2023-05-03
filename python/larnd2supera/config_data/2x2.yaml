@@ -10,18 +10,17 @@ PropertyKeyword: '2x2'
 TileLayout: ''
 DetectorProperties: ''
 ParserRunConfig:
-    ifspill: True
-    event_separator: 'spillID'
+    event_separator: 'eventID'
 ElectronEnergyThreshold: 5
 
 BBoxAlgorithm: BBoxInteraction
 BBoxConfig:
     LogLevel:   WARNING
     Seed:       -1
-    BBoxSize:   [120,120,120]
-    BBoxTop:    [60,103,60]
-    BBoxBottom: [-60,-17,-60]
-    VoxelSize:  [0.4,0.4,0.4]
+    BBoxSize:   [141.888,127.6992,141.888]
+    BBoxTop:    [70.944,105.8496,70.944]
+    BBoxBottom: [-70.944,-21.8496,-70.944]
+    VoxelSize:  [0.4434,0.4434,0.4434]
     #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
     #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
 

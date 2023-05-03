@@ -182,7 +182,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         if verbose:
             print('Got x,y,z,dE = ', x, y, z, dE)
 
-        start_time = time.time()  
+        start_time = time.time()
 
         track_ids = data.mc_packets_assn['track_ids']
         if verbose:
@@ -288,12 +288,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     #       This xyz does not need to be flipped.
                     #       The packet_track (which comes from edepsim) coordinates need to be flipped 
                     #       to match with the larndsim's (and hence EventParser's) coordinates.
-                    seg_pt0.x = packet_track['z_start']
+                    seg_pt0.x = packet_track['x_start']
                     seg_pt0.y = packet_track['y_start']
-                    seg_pt0.z = packet_track['x_start']
-                    seg_pt1.x = packet_track['z_end']
+                    seg_pt0.z = packet_track['z_start']
+                    seg_pt1.x = packet_track['x_end']
                     seg_pt1.y = packet_track['y_end']
-                    seg_pt1.z = packet_track['x_end']
+                    seg_pt1.z = packet_track['z_end']
                     target_pt.x = edep.x
                     target_pt.y = edep.y
                     target_pt.z = edep.z
