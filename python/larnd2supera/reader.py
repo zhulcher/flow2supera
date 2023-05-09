@@ -96,21 +96,11 @@ class InputReader:
             print('    %d unique event IDs found.' % len(self._event_ids))
             print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
         
-        # create a list of corresponding T0s
-        t0_group = np.empty(shape=(0,))
-        
-        t0_group = EventParser.get_t0_event(self._vertices,self._run_config)
-        # Match true t0s with reconstructed events
-        self._event_t0s = np.array([t0_group[i] for i in self._event_ids])
+        # create a list of corresponding T0s        
+        self._event_t0s = EventParser.get_t0_event(self._vertices,self._run_config)
 
         # Assert strong assumptions here
-        # Assumption 1: currently we assume T0 is same for all readout groups
-        #self._event_t0s = self._correct_t0s(np.unique(t0_group,axis=1),len(self._event_ids))
-        #if not self._event_t0s.shape[1]==1:
-        #    print('    ERROR: found an event with non-unique T0s across readout groups.')
-        #    raise ValueError('Current code implementation assumes unique T0 per event!')
-
-        # Assumption 2: the number of readout should be same as the number of valid Event IDs
+        # the number of readout should be same as the number of valid Event IDs
         if not len(self._event_ids) == self._event_t0s.shape[0]:
             raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
 
