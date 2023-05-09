@@ -101,8 +101,7 @@ class InputReader:
         
         t0_group = EventParser.get_t0_event(self._vertices,self._run_config)
         # Match true t0s with reconstructed events
-        t0_group = [t0_group[i] for i in self._event_ids]
-
+        self._event_t0s = np.array([t0_group[i] for i in self._event_ids])
 
         # Assert strong assumptions here
         # Assumption 1: currently we assume T0 is same for all readout groups
@@ -111,11 +110,9 @@ class InputReader:
         #    print('    ERROR: found an event with non-unique T0s across readout groups.')
         #    raise ValueError('Current code implementation assumes unique T0 per event!')
 
-        self._event_t0s = np.unique(t0_group)
-
         # Assumption 2: the number of readout should be same as the number of valid Event IDs
         if not len(self._event_ids) == self._event_t0s.shape[0]:
-            raise ValueError('Mismatch in the number of unique Event IDs and event T0 counts')
+            raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
 
         # Now it's safe to assume all readout groups for every event shares the same T0
         self._event_t0s = self._event_t0s.flatten()
