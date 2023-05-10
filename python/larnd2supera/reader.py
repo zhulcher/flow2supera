@@ -101,8 +101,12 @@ class InputReader:
 
         # Assert strong assumptions here
         # the number of readout should be same as the number of valid Event IDs
-        if not len(self._event_ids) == self._event_t0s.shape[0]:
+        if len(self._event_ids) > len(self._event_t0s):
             raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
+
+        if len(self._event_ids) < len(self._event_t0s):
+            print('    %d T0s found > %d unique event IDs.' % (len(self._event_t0s),len(self._event_ids)))
+            print('    Ignoring the extra t0s...')
 
         # Now it's safe to assume all readout groups for every event shares the same T0
         self._event_t0s = self._event_t0s.flatten()
