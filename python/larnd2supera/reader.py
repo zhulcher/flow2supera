@@ -79,7 +79,7 @@ class InputReader:
         self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks)
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, self._vertices)
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
@@ -110,7 +110,11 @@ class InputReader:
 
         # Now it's safe to assume all readout groups for every event shares the same T0
         self._event_t0s = self._event_t0s.flatten()
-        
+
+
+
+
+
 
     def GetEvent(self,event_id):
         
