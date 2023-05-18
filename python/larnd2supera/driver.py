@@ -10,14 +10,25 @@ import larnd2supera
 
 class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
-    LOG_KEYS=['bad_track_id','packet_total','packet_ass','packet_noass','fraction_nan','ass_frac']
+    LOG_KEYS = ('ass_saturation',
+        'residual_q',
+        'packet_total',
+        'packet_ctr',
+        'packet_noass',
+        'packet_badass',
+        'fraction_nan',
+        'ass_frac')
+
     def __init__(self):
         super().__init__()
         self._geom_dict  = None
         self._run_config = None
         self._trackid2idx = std.vector('supera::Index_t')()
         self._allowed_detectors = std.vector('std::string')()
-        self._edeps_unassociated = []
+        self._edeps_unassociated = std.vector('supera::EDep')()
+        self._edeps_all = std.vector('supera::EDep')()
+        self._ass_distance_limit=0.4434*4.5
+        self._ass_charge_limit=0.05
         self._log=None
         self._electron_energy_threshold=0
         self._estimate_pt_time=True
@@ -91,6 +102,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 )
             self._estimate_pt_time = cfg.get('EstimatePointTime',
                 self._estimate_pt_time)
+            self._ass_distance_limit = cfg.get('AssDistanceLimit',
+                self._ass_distance_limit)
+            self._ass_charge_limit = cfg.get('AssChargeLimit',
+                self._ass_charge_limit)
+
         super().ConfigureFromFile(fname)
 
 
@@ -131,13 +147,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         supera_event = supera.EventInput()
         supera_event.reserve(len(data.trajectories))
         
-        self._trackid2idx.clear()
-        self._trackid2idx.reserve(len(data.trajectories))
-        #supera_event = []
-
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
-
+        max_trackid = max(data.trajectories['trackID'].max(),data.segments['trackID'].max())
+        self._trackid2idx.resize(int(max_trackid+1),supera.kINVALID_INDEX)
         for traj in data.trajectories:
             # print("traj",traj)
             part_input = supera.ParticleInput()
@@ -155,7 +168,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             if traj['trackID'] < 0:
                 print('Negative track ID found',traj['trackID'])
                 raise ValueError
-            self._trackid2idx.resize(int(traj['trackID']+1),supera.kINVALID_INDEX)
             self._trackid2idx[int(traj['trackID'])] = part_input.part.id
             supera_event.push_back(part_input)
             
@@ -184,45 +196,60 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         start_time = time.time()
 
-        track_ids = data.mc_packets_assn['track_ids']
-        if verbose:
-            print('track_ids before:\n', track_ids)
-        fractions = data.mc_packets_assn['fraction']
-        if verbose:
-            print('initial_index*(track_ids!=-1):\n', data.first_track_id*(track_ids!=-1))
+        ass_segments = data.mc_packets_assn['track_ids']
+        ass_fractions = data.mc_packets_assn['fraction']
         
         # Check if the data.first_track_id is consistent with track_ids.
-        bad_track_ids = [ v for v in np.unique(track_ids[track_ids<data.first_track_id]) if not v == -1]
-        if len(bad_track_ids):
-            print(f'\n[ERROR] unexpected track ID found {bad_track_ids} (first track ID in the event {data.first_track_id})')
-            for bad_tid in bad_track_ids:
-                print(f'    Track ID {bad_tid} ... associated fraction {fractions[np.where(track_ids==bad_tid)]}')
-            print()
-
+        # Commented out on May 15 2023 - the below code is redundant with np.nonzero in reader.py
+        #bad_track_ids = [ v for v in np.unique(track_ids[track_ids<data.first_track_id]) if not v == -1]
+        #if len(bad_track_ids):
+        #    print(f'\n[ERROR] unexpected track ID found {bad_track_ids} (first track ID in the event {data.first_track_id})')
+        #    for bad_tid in bad_track_ids:
+        #        print(f'    Track ID {bad_tid} ... associated fraction {ass_fractions[np.where(track_ids==bad_tid)]}')
         if not self._log is None:
-            if len(bad_track_ids):
-                self._log['bad_track_id'][-1]+=1
+            #if len(bad_track_ids):
+            #    self._log['bad_track_id'][-1]+=1
             self._log['packet_total'][-1]+=len(data.packets)
 
-            
-        #print(len(np.unique(track_ids[track_ids>=0])),'valid track IDs... min ID',np.min(track_ids[np.where(track_ids>=0)]),
-        #      'first track index:',data.first_track_id)
-        #print('min track ID location:',np.where(track_ids == np.min(track_ids[np.where(track_ids>=0)]))[0])
-        #print('first track ID location:',np.where(track_ids == data.first_track_id)[0])
-        #print('How many valid track IDs below the first track ID?')
-        #print(len(np.unique(track_ids[(track_ids>=0) & (track_ids<data.first_track_id)])))
-        #print('Track ID range:',np.min(track_ids[track_ids>=0]),'=>',np.max(track_ids[track_ids>=0]))
-        track_ids = np.subtract(track_ids, data.first_track_id*(track_ids!=-1))
-        #print('Track ID range:',np.min(track_ids[track_ids>=0]),'=>',np.max(track_ids[track_ids>=0]))
-        if verbose:
-            print('track_ids after:\n', track_ids)
+        ass_segments = np.subtract(ass_segments, data.segment_index_min*(ass_segments!=-1))
 
-        # Use these to define a segment if self._estimate_pt_time is True
+        # Define some objects that are repeatedly used within the loop
         seg_pt0   = supera.Point3D()
         seg_pt1   = supera.Point3D()
-        target_pt = supera.Point3D()
+        packet_pt = supera.Point3D()
+        poca_pt   = supera.Point3D()
+        seg_flag  = None
+        seg_dist  = None
 
-        mm2cm = 0.1 # For converting packet x,y,z values
+        # a list to keep energy depositions w/o true association
+        self._edeps_unassociated.clear() 
+        self._edeps_unassociated.reserve(len(data.packets))
+        self._edeps_all.clear();
+        self._edeps_all.reserve(len(data.packets))
+        self._mm2cm = 0.1 # For converting packet x,y,z values
+
+        #
+        # Loop over packets and decide particle trajectory segments that are associated with it.
+        # Also calculate how much fraction of the packet value should be associated to this particle.
+        #
+        # Loop over packets, and for each packet:
+        #   Step 1. Loop over associated segments and calculate how far the packet location (3D point)
+        #           is with respect to the truth segment (3D line). If the distance is larger than the
+        #           parameter self._ass_distance_limit, ignore this segment from the association. If 
+        #           this step results in no associated segment to this packet, assign the packet as
+        #           self._edeps_unassociated container and continue.
+        #
+        #   Step 2. Calculate threshold on the associated fraction by f_min = self._ass_charge_limit/Q
+        #           where Q is the total charge stored in the packet. Ignore the associated segments if its
+        #           fraction is smaller than f_min. If this step results in no associated segment to this
+        #           packet, associate the entire fraction to the segment with the largest fraction.
+        #
+        #   Step 3. If there is more than one segment remained with association to this packet, re-normalize
+        #           the fraction array within the remaining elements and compute the associated charge fraction
+        #           to each segment, store EDeps to corresponding particle object.
+        #
+        check_raw_sum=0
+        check_ana_sum=0
         for ip, packet in enumerate(data.packets):
             if verbose:
                 print('*****************Packet', ip, '**********************')
@@ -230,130 +257,212 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             # If packet_type !=0 continue
             if packet['packet_type'] != 0: continue
 
-            # print("ip",ip)
-            #print('TrackID index:',ip,'/',len(track_ids))
-            packet_track_ids = track_ids[ip]
-            packet_fractions = fractions[ip]
-            if verbose:
-                print('packet_track_ids:', packet_track_ids)
-                print('packet_fractions:', packet_fractions)
+            # Record this packet
+            raw_edep = supera.EDep()
+            raw_edep.x, raw_edep.y, raw_edep.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
+            raw_edep.e = dE[ip]
+            self._edeps_all.push_back(raw_edep)
+            check_raw_sum += dE[ip]
 
-            # If only associated track IDs are -1, skip this packet.
-            # 2023-02-12 commented out by Kazu: we should handle -1 which might be noise or induced current
-            if len(np.unique(packet_track_ids))==1 and -1 in np.unique(packet_track_ids):
-                print('[WARNING] found a packet unassociated with any tracks')
-                if not self._log is None:
-                    self._log['bad_adc'][-1]+=1
-                edep = supera.EDep()
-                edep.x,edep.y,edep.z,edep.e = x[ip]*mm2cm, y[ip]*mm2cm, z[ip]*mm2cm, dE
-                edep.t    = packet_track['t0'] 
-                edep.dedx = packet_track['dEdx']
-                self._edeps_unassociated.append(edep)
-                if not self._log is None:
-                    self._log['packet_noass'][-1] += 1
-                continue
+            # Log the valid packet count
+            if not self._log is None:
+                self._log['packet_ctr'][-1]+=1
 
-            # If fraction includes `nan` skip this packet.
-            if np.isnan(packet_fractions).sum():
-                print(f'    WARNING: found a packet containing {np.isnan(packet_fractions).sum()} nan fractions')
-                if self._log is not None:
-                    self._log['fraction_nan'][-1] += 1
-                continue
+            # We analyze and modify segments and fractions, so make a copy
+            packet_segments  = np.array(ass_segments[ip])
+            packet_fractions = np.array(ass_fractions[ip])
+            packet_edeps = [None] * len(packet_segments)
 
-            for t in range(len(packet_track_ids)):
-                if verbose:
-                    print('----Packet trackID', t, '-----')
+            #tids = [data.segments[packet_segments[idx]]['trackID'] for idx in range(packet_segments.shape[0])]
+            #debug1 = 10 in tids
+            #debug2 = False
+            #if debug1:
+            #    d='1068 1273 1274 1290 1320 1342 1375 1425 1463 1472 1473 1479 1517 1069 1071 1078 1089 1091 1093 1098 1102 1114 1149 1171 1235 1242 1250 1251 1253 1256 1081 1084 1177 1178 1092 1099 1100 1103 1130 1179 1270 1544 1576 1587 1590 1592 1597 1610 1611 1628 1636 1639 1545 1287 1376 1288 1291 1293 1584 1588 1593 1595 1608 1151 1152 1218 1224 1556 1849'
+            #    for t in [int(val) for val in d.split()]:
+            #        if t in tids:
+            #            debug2=True
+            #            break
+            #if debug1 and debug2:
+            #    verbose = True
+            #else:
+            #    verbose = False
 
-                # 2023-02-12 commented out by Kazu: we should handle -1 which might be noise or induced current
-                if packet_track_ids[t] <= -1: continue
-                
-                #print(packet_track_ids[t])
-                packet_track = data.tracks[packet_track_ids[t]]
-                edep = supera.EDep()
+            # Initialize seg_flag once 
+            if seg_flag is None:
+                seg_flag = np.zeros(shape=(packet_segments.shape[0]),dtype=bool)
+                seg_dist = np.zeros(shape=(packet_segments.shape[0]),dtype=float)
+            seg_flag[:] = True
+            seg_dist[:] = 1.e9
 
-                edep.x,edep.y,edep.z = x[ip]*mm2cm, y[ip]*mm2cm, z[ip]*mm2cm
-                if verbose:
-                    print('edep xyz:', edep.x, edep.y, edep.z)
-                    print('Multiply dE {} by fraction {}'.format(packet_track['dE'], packet_fractions[t]))
-                #edep.e    = packet_track['dE'] * packet_fractions[t]
-                edep.e    = dE[ip] * packet_fractions[t]
-                edep.dedx = packet_track['dEdx']
-
-                if not self._estimate_pt_time:
-                    edep.t    = packet_track['t0'] 
-                    print('raw:',edep.t,'...',edep.x,edep.y,edep.z)
-                else:
-                    # FIXME 2023-04-18 larndsim flip x and z as of this date.
-                    # Note: edep's xyz come from the EventParser which takes the larndsim coordinates.
-                    #       This xyz does not need to be flipped.
-                    #       The packet_track (which comes from edepsim) coordinates need to be flipped 
-                    #       to match with the larndsim's (and hence EventParser's) coordinates.
-                    seg_pt0.x = packet_track['x_start']
-                    seg_pt0.y = packet_track['y_start']
-                    seg_pt0.z = packet_track['z_start']
-                    seg_pt1.x = packet_track['x_end']
-                    seg_pt1.y = packet_track['y_end']
-                    seg_pt1.z = packet_track['z_end']
-                    target_pt.x = edep.x
-                    target_pt.y = edep.y
-                    target_pt.z = edep.z
-
-                    #print('Segment',packet_track['segment_id'],'Track',packet_track['trackID'])
-                    #print('  (%.2f %.2f %.2f) ... (%.2f %.2f %.2f) => (%.2f %.2f %.2f)' % (target_pt.x,target_pt.y,target_pt.z,seg_pt0.x, seg_pt0.y, seg_pt0.z, seg_pt1.x, seg_pt1.y, seg_pt1.z))
-                    #print('  time:', packet_track['t0_start'],'=>',packet_track['t0_end'])
-                    if packet_track['t0_start'] < packet_track['t0_end']:
-                        frac = self.PoCA(seg_pt0,seg_pt1,target_pt,scalar=True)
-                        edep.t = packet_track['t0_start'] + frac*(packet_track['t0_end'  ] - packet_track['t0_start'])
-                    else:
-                        frac = self.PoCA(seg_pt1,seg_pt0,target_pt,scalar=True)
-                        edep.t = packet_track['t0_end'  ] + frac*(packet_track['t0_start'] - packet_track['t0_end'  ])
-                    #print('  est:',edep.t,'...',edep.x,edep.y,edep.z,'...',frac)
-
-                #import numpy as np
-                #print('t0',packet_track['t0'],'t0_start',packet_track['t0_start'],'t0_end',packet_track['t0_end'])
-                #print('t',packet_track['t'],'t_start',packet_track['t_start'],'t_end',packet_track['t_end'])
-                #print(np.dtype(packet_track))
-                #for t in np.dtype(packet_track):
-                #    print(t)
-                #print(packet_track[0])
-                #print(packet_track)
-                #help(packet_track)
-                #import sys
-                #sys.exit(1)
-
-                # register EDep
-                if packet_track['t'] >= 0:
-                    supera_event[self._trackid2idx[int(packet_track['trackID'])]].pcloud.push_back(edep)
-
+            # Step 1. Compute the distance and reject some segments (see above comments for details)
+            for it in range(packet_segments.shape[0]):
+                seg_idx = packet_segments[it]
+                if seg_idx == -1: 
+                    seg_flag[it]=False
+                    continue                
+                # If logging, record the sum of the raw packet fraction
                 if not self._log is None:
                     self._log['ass_frac'][-1] += packet_fractions[t]
+                # Access the segment
+                seg = data.segments[seg_idx]
+                # Compute the Point of Closest Approach as well as estimation of time.
+                edep = supera.EDep()
+                seg_pt0.x, seg_pt0.y, seg_pt0.z = seg['x_start'], seg['y_start'], seg['z_start']
+                seg_pt1.x, seg_pt1.y, seg_pt1.z = seg['x_end'], seg['y_end'], seg['z_end']
+                packet_pt.x, packet_pt.y, packet_pt.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
 
+                if seg['t0_start'] < seg['t0_end']:
+                    time_frac = self.PoCA(seg_pt0,seg_pt1,packet_pt,scalar=True)
+                    edep.t = seg['t0_start'] + time_frac * (seg['t0_end'  ] - seg['t0_start'])
+                    poca_pt = seg_pt0 + (seg_pt1 - seg_pt0) * time_frac
+                else:
+                    time_frac = self.PoCA(seg_pt1,seg_pt0,packet_pt,scalar=True)
+                    edep.t = seg['t0_end'  ] + time_frac * (seg['t0_start'] - seg['t0_end'  ])
+                    poca_pt = seg_pt1 + (seg_pt0 - seg_pt1) * time_frac
+
+                seg_dist[it] = poca_pt.distance(packet_pt)
+                edep.x, edep.y, edep.z = packet_pt.x, packet_pt.y, packet_pt.z
+                edep.dedx = seg['dEdx']
+                packet_edeps[it] = edep
+
+            if verbose:
+                print('[INFO] Assessing packet',ip)
+                print('       Segments :', packet_segments)
+                print('       TrackIDs :', [data.segments[packet_segments[idx]]['trackID'] for idx in range(packet_segments.shape[0])])
+                print('       Fractions:', ['%.3f' % f for f in packet_fractions])
+                print('       Energy   : %.3f' % dE[ip])
+                print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
+                print('       Distance :', ['%.3f' % f for f in seg_dist])
+
+            # Post-Step1, check if there is any associated segments left.
+            # Post-Step1.A: If none left, then register to the set of unassociated segments.
+            if (seg_dist < self._ass_distance_limit).sum()<1:
+                if verbose:
+                    print('[WARNING] found a packet unassociated with any tracks')
+                    print('          Packet %d Charge %.3f' % (ip,dE[ip]))
+                edep = supera.EDep()
+                edep.x,edep.y,edep.z,edep.e = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm, dE[ip]
+                self._edeps_unassociated.push_back(edep)
+                if not self._log is None:
+                    self._log['packet_noass'][-1] += 1
+                check_ana_sum += edep.e
+                continue
+
+            # After this point, >=1 association will be found. Log if needed
             if not self._log is None:
-                self._log['packet_ass'][-1]+=1
-        
+                self._log['ass_frac'][-1] += 1
+
+            # Post-Step1.B: If only one segment left, register to that packet.
+            if (seg_dist < self._ass_distance_limit).sum()==1:
+                if verbose:
+                    print('[INFO] Registering the only segment within distance limit',packet_segments[it])
+                it = np.argmin(seg_dist)
+                seg_idx = packet_segments[it]
+                seg = data.segments[seg_idx]
+                packet_edeps[it].dedx = seg['dEdx']
+                packet_edeps[it].e = dE[ip]
+                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
+                check_ana_sum += packet_edeps[it].e
+                continue
+
+            # Check (and log if needed) if the number of associations is saturated 
+            if not -1 in packet_segments:
+                if verbose:
+                    print('[WARNING] found',len(packet_segments),'associated track IDs maxing out the recording array size')
+                if not self._log is None:
+                    self._log['ass_saturation'][-1] += 1
+
+            # Step 2. Claculate the fraction min threshold and ignore segments with a fraction value below
+            frac_min = 0
+            nan_fraction_found=False
+            if abs(dE[ip])>0.:
+                frac_min = abs(self._ass_charge_limit / dE[ip])
+            for it in range(packet_fractions.shape[0]):
+                # If the associated fraction of this segment is nan, disregard this segment
+                if np.isnan(packet_fractions[it]):
+                    seg_flag[it]=False
+                    nan_fraction_found=True
+                    continue
+                if seg_dist[it] > self._ass_distance_limit:
+                    seg_flag[it]=False
+                    continue
+                seg_flag[it] = abs(packet_fractions[it]) > frac_min
+
+            if nan_fraction_found:
+                print('    WARNING: found nan in fractions of a packet:', packet_fractions)
+                if self._log is not None:
+                    self._log['fraction_nan'][-1] += 1
+
+
+            # Check if none of segments is above the frac_min. If so, only use the shortest distant segment.
+            if seg_flag.sum()<1:
+                if verbose:
+                    print('[WARNING] All associated segment below threshold: packet')
+                    print('          Packet %d Charge %.3f' % (ip,dE[ip]), ['%.3f' % f for f in packet_fractions])
+                if not self._log is None:
+                    self._log['packet_badass'][-1] += 1            
+                it = np.argmin(seg_dist)
+                if verbose:
+                    print('[INFO] Registering the closest segment',packet_segments[it])
+                #print(ass_segments[ip])
+                #print(ass_fractions[ip])
+                #print(it)
+                #print(packet_fractions)
+                seg_idx = packet_segments[it]
+                seg = data.segments[seg_idx]
+                packet_edeps[it].dedx = seg['dEdx']
+                packet_edeps[it].e = dE[ip]
+                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
+                check_ana_sum += packet_edeps[it].e
+                continue
+
+
+            # Step 3: re-normalize the fraction among remaining segments and create EDeps
+            frac_norm = 1. / (np.abs(packet_fractions[seg_flag]).sum())
+            for it in range(packet_fractions.shape[0]):
+                if not seg_flag[it]: continue
+                seg_idx = packet_segments[it]
+                seg = data.segments[seg_idx]
+                packet_edeps[it].dedx = seg['dEdx']
+                packet_edeps[it].e = dE[ip] * abs(packet_fractions[it]) * frac_norm
+                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
+                if verbose:
+                    print('[INFO] Registered segment',seg_idx)
+                check_ana_sum += packet_edeps[it].e
 
         if verbose:
             print("--- filling edep %s seconds ---" % (time.time() - start_time)) 
+
         if not self._log is None:
-            if self._log['packet_ass'][-1]>0:
-                self._log['ass_frac'][-1] /= self._log['packet_ass'][-1]
+
+            self._log['residual_q'][-1] = check_raw_sum - check_ana_sum
+
+            if self._log['packet_ctr'][-1]>0:
+                self._log['ass_frac'][-1] /= self._log['packet_ctr'][-1]
 
             if self._log['packet_noass'][-1]:
                 value_bad, value_frac = self._log['packet_noass'][-1], self._log['packet_noass'][-1]/self._log['packet_total'][-1]
                 print(f'    WARNING: {value_bad} packets ({value_frac} %) had no MC track association')
+
             if self._log['fraction_nan'][-1]:
                 value_bad, value_frac = self._log['fraction_nan'][-1], self._log['fraction_nan'][-1]/self._log['packet_total'][-1]
                 print(f'    WARNING: {value_bad} packets ({value_frac} %) had nan fractions associated')
+
             if self._log['ass_frac'][-1]<0.9999:
                 print(f'    WARNING associated packet count fraction is {self._log["ass_frac"][-1]} (<1.0)')
-            if self._log['bad_track_id'][-1]:
-                print(f'    WARNING: {self._log["bad_track_id"][-1]} invalid track IDs found in the association')
+
+            #if self._log['bad_track_id'][-1]:
+            #    print(f'    WARNING: {self._log["bad_track_id"][-1]} invalid track IDs found in the association')
+
+        if abs(check_raw_sum - check_ana_sum)>0.1:
+            print('[WARNING] large disagreement in the sum packet values:')
+            print('    Raw sum:',check_raw_sum)
+            print('    Accounted sum:',check_ana_sum)
+        supera_event.unassociated_edeps = self._edeps_unassociated
 
         return supera_event
 
     def TrajectoryToParticle(self, trajectory):
-        mm2cm = 0.1
-
         p = supera.Particle()
         # Larnd-sim stores a lot of these fields as numpy.uint32, 
         # but Supera/LArCV want a regular int, hence the type casting
@@ -435,7 +544,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     if abs(supera_part.parent_pdg) == 11:
                         supera_part.type = supera.kIonization
                         
-                    elif abs(supera_part.parent_pdg) == 211 or abs(supera_part.parent_pdg) == 13 or abs(supera_part.parent_pdg) == 2212:
+                    elif abs(supera_part.parent_pdg) in [211,13,2212,321]:
                         supera_part.type = supera.kDelta
 
                     elif supera_part.parent_pdg == 22:

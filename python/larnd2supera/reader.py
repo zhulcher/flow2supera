@@ -6,11 +6,11 @@ from LarpixParser.util import detector_configuration
 class InputEvent:
     event_id = -1
     mc_packets_assn = None
-    tracks  = None
-    packets = None
+    segments = None
+    packets  = None
     trajectories = None
     t0 = -1
-    first_track_id = -1
+    segment_index_min = -1
     event_separator = ''
 
 class InputReader:
@@ -18,7 +18,7 @@ class InputReader:
     def __init__(self,parser_run_config, input_files=None):
         self._mc_packets_assn = None
         self._packets = None
-        self._tracks = None
+        self._segments = None
         self._trajectories = None
         self._vertices = None
         self._packet2event = None
@@ -26,6 +26,7 @@ class InputReader:
         self._event_t0s = None
         self._if_spill = False
         self._run_config = parser_run_config
+        self._is_sim = False
         
         if input_files:
             self.ReadFile(input_files)
@@ -55,31 +56,38 @@ class InputReader:
     
     def ReadFile(self,input_files,verbose=False):
         mc_packets_assn = []
-        packets = []
-        tracks  = []
+        packets  = []
+        segments = []
         trajectories = []
         vertices = []
         
         if type(input_files) == str:
             input_files = [input_files]
-            
+        
+        self._is_sim = False
         for f in input_files:
             with h5.File(f,'r') as fin:
-                mc_packets_assn.append(fin['mc_packets_assn'][:])
                 packets.append(fin['packets'][:])
-                tracks.append(fin['tracks'][:])
-                trajectories.append(fin['trajectories'][:])
-                vertices.append(fin['vertices'][:])
-                if verbose: print('Read-in:',f)
+                self._is_sim = 'mc_packets_assn' in fin.keys()
+                if self._is_sim:
+                    mc_packets_assn.append(fin['mc_packets_assn'][:])
+                    segments.append(fin['tracks'][:])
+                    trajectories.append(fin['trajectories'][:])
+                    vertices.append(fin['vertices'][:])
+                    if verbose: print('Read-in:',f)
                 
-        self._mc_packets_assn = np.concatenate(mc_packets_assn)
         self._packets = np.concatenate(packets)
-        self._tracks  = np.concatenate(tracks )
+
+        if not self._is_sim:
+            print('Currently only simulation is supoprted')
+            raise NotImplementedError
+        self._mc_packets_assn = np.concatenate(mc_packets_assn)
+        self._segments  = np.concatenate(segments )
         self._trajectories = np.concatenate(trajectories)
         self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._tracks, self._vertices)
+        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._segments, self._vertices)
         
         packet_mask = self._packet2event != -1
         ctr_packet  = len(self._packets)
@@ -147,10 +155,10 @@ class InputReader:
         result.packets = self._packets[mask]
         result.mc_packets_assn = self._mc_packets_assn[mask]
         
-        mask = self._tracks[self._run_config['event_separator']] == result.event_id
-        result.tracks = self._tracks[mask]
+        mask = self._segments[self._run_config['event_separator']] == result.event_id
+        result.segments = self._segments[mask]
         
-        result.first_track_id = mask.nonzero()[0][0]
+        result.segment_index_min = mask.nonzero()[0][0]
         
         mask = self._trajectories[self._run_config['event_separator']] == result.event_id
         result.trajectories = self._trajectories[mask]

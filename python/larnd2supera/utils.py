@@ -81,11 +81,13 @@ def run_supera(out_file='larcv.root',
         time_generate = time.time() - t2
 
         t3 = time.time()
-        value_v  = ROOT.std.vector("float")()
-        value_vv = ROOT.std.vector("std::vector<float>")()
 
         result = driver.Label()
         meta   = larcv_meta(driver.Meta())
+
+        tensor_packets = writer.get_data('sparse3d','packets')
+        meta.edep2voxelset(driver._edeps_all).fill_std_vectors(id_v,value_v)
+        larcv.as_event_sparse3d(tensor_packets,meta,id_v,value_v)
         
         tensor_energy = writer.get_data("sparse3d","pcluster")
         result.FillTensorEnergy(id_v,value_v)
