@@ -121,9 +121,6 @@ class InputReader:
 
 
 
-
-
-
     def GetEvent(self,event_id):
         
         index_loc = (self._event_ids == event_id).nonzero()[0]
@@ -134,7 +131,58 @@ class InputReader:
             return None
         
         return GetEntry(index_loc[0])
-        
+
+    def CheckIntegrity(self,data,fix_association=False):
+
+        flag = True
+        tid_range0 = np.array([t['trackID'] for t in data.trajectories])
+        tid_range1 = np.array([s['trackID'] for s in data.segments    ])
+
+        if tid_range0.max() < tid_range1.max():
+            print('[ERROR] Max Track ID in the segments exceeds the maximum of the trajectories')
+            flag = False
+
+        if tid_range0.min() > tid_range1.min():
+            print('[ERROR] Min Track ID in the segments is below the minimum of the trajectories')
+            flag = False
+
+        if not flag:
+            return flag
+
+        seg_index = data.mc_packets_assn['track_ids']
+        # check if max index is within the number of segments
+        max_index = seg_index.max()
+        min_index = seg_index[seg_index>-1].min()
+
+        prefix = '[WARNING]' if fix_association else '[ERROR]'
+        if min_index < data.segment_index_min:
+            # Bad segment index on low end
+
+            print(prefix,'Minimum segment index from the association:',min_index)
+            print('        Index range of segments for this event:',data.segment_index_min,
+                '=>',data.segment_index_min+len(data.segments))
+            flag = False
+            if fix_association:
+                print('[WARNING] ignoring the bad association')
+                seg_index[seg_index<data.segment_index_min] = -1
+                data.mc_packets_assn['track_ids'] = seg_index
+                flag = True
+
+        if (max_index - data.segment_index_min) >= len(data.segments):
+            # Bad segment index on high end
+            print(prefix,'Maximum segment index from the association:',max_index)
+            print('        Index range of segments for this event:',data.segment_index_min,
+                '=>',data.segment_index_min+len(data.segments))
+            flag = False
+            if fix_association:
+                print('[WARNING] ignoring the bad association')
+                seg_index[seg_index>=(data.segment_index_min+len(data.segments))] = -1
+                data.mc_packets_assn['track_ids'] = seg_index
+                flag = True
+
+        return flag
+
+
     def GetEntry(self,index):
         
         if index >= len(self._event_ids):
@@ -148,7 +196,7 @@ class InputReader:
         result.event_separator = self._run_config['event_separator']
         
         result.event_id = self._event_ids[index]
-        result.t0 = self._event_t0s[index]
+        result.t0 = self._event_t0s[result.event_id]
 
         mask = self._packet2event == result.event_id
         

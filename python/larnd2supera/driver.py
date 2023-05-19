@@ -32,6 +32,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         self._log=None
         self._electron_energy_threshold=0
         self._estimate_pt_time=True
+        self._ignore_bad_association=True
         print("Initialized SuperaDriver class")
 
 
@@ -302,7 +303,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     continue                
                 # If logging, record the sum of the raw packet fraction
                 if not self._log is None:
-                    self._log['ass_frac'][-1] += packet_fractions[t]
+                    self._log['ass_frac'][-1] += packet_fractions[it]
                 # Access the segment
                 seg = data.segments[seg_idx]
                 # Compute the Point of Closest Approach as well as estimation of time.
@@ -441,11 +442,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 self._log['ass_frac'][-1] /= self._log['packet_ctr'][-1]
 
             if self._log['packet_noass'][-1]:
-                value_bad, value_frac = self._log['packet_noass'][-1], self._log['packet_noass'][-1]/self._log['packet_total'][-1]
+                value_bad, value_frac = self._log['packet_noass'][-1], self._log['packet_noass'][-1]/self._log['packet_total'][-1]*100.
                 print(f'    WARNING: {value_bad} packets ({value_frac} %) had no MC track association')
 
             if self._log['fraction_nan'][-1]:
-                value_bad, value_frac = self._log['fraction_nan'][-1], self._log['fraction_nan'][-1]/self._log['packet_total'][-1]
+                value_bad, value_frac = self._log['fraction_nan'][-1], self._log['fraction_nan'][-1]/self._log['packet_total'][-1]*100.
                 print(f'    WARNING: {value_bad} packets ({value_frac} %) had nan fractions associated')
 
             if self._log['ass_frac'][-1]<0.9999:
@@ -459,7 +460,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             print('    Raw sum:',check_raw_sum)
             print('    Accounted sum:',check_ana_sum)
         supera_event.unassociated_edeps = self._edeps_unassociated
-
         return supera_event
 
     def TrajectoryToParticle(self, trajectory):

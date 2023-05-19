@@ -13,6 +13,7 @@ parser.add_option("-n", "--num_events", dest="num_events", metavar="INT", defaul
     help="number of events to process")
 parser.add_option("-s", "--skip", dest="skip", metavar="INT", default=0,
     help="number of first events to skip")
+parser.add_option("-b", action="store_true", dest="ignore_bad_association", default=False)
 parser.add_option("-l", "--log", dest="log_file", metavar="FILE", default='',
     help="the name of a log file to be created. ")
 
@@ -55,5 +56,6 @@ larnd2supera.utils.run_supera(out_file=data.output_filename,
     config_key=data.config,
     num_events=int(data.num_events),
     num_skip=int(data.skip),
+    ignore_bad_association=bool(data.ignore_bad_association),
     save_log=data.log_file,
     )
