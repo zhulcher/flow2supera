@@ -6,7 +6,7 @@ import LarpixParser
 from LarpixParser import hit_parser as HitParser
 import yaml
 from yaml import Loader
-import larnd2supera
+import flow2supera
 
 class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
@@ -97,7 +97,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         with open(fname,'r') as f:
             cfg=yaml.load(f.read(),Loader=Loader)
             if not self.LoadPropertyConfigs(cfg):
-                raise ValueError('Failed to configure larnd2supera!')
+                raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
@@ -129,7 +129,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
     def ConfigureFromText(self,txt):
         cfg=yaml.load(txt,Loader=Loader)
         if not self.LoadPropertyConfigs(cfg):
-            raise ValueError('Failed to configure larnd2supera!')
+            raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
@@ -474,7 +474,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
-        p.energy_init = np.sqrt(pow(larnd2supera.pdg2mass.pdg2mass(p.pdg),2)+pow(p.px,2)+pow(p.py,2)+pow(p.pz,2))
+        p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2)+pow(p.px,2)+pow(p.py,2)+pow(p.pz,2))
         p.vtx    = supera.Vertex(trajectory['xyz_start'][0], 
                                  trajectory['xyz_start'][1], 
                                  trajectory['xyz_start'][2], 

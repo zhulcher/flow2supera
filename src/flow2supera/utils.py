@@ -2,7 +2,7 @@ import sys, os
 import h5py
 import numpy as np
 import time
-import larnd2supera
+import flow2supera
 import argparse
 import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
@@ -11,13 +11,13 @@ from larcv import larcv
 import pandas as pd
 
 
-def get_larnd2supera(config_key):
+def get_flow2supera(config_key):
 
-    driver = larnd2supera.driver.SuperaDriver()
+    driver = flow2supera.driver.SuperaDriver()
     if os.path.isfile(config_key):
         driver.ConfigureFromFile(config_key)
     else:
-        driver.ConfigureFromFile(larnd2supera.config.get_config(config_key))
+        driver.ConfigureFromFile(flow2supera.config.get_config(config_key))
     
     return driver 
 
@@ -86,8 +86,8 @@ def run_supera(out_file='larcv.root',
     start_time = time.time()
 
     writer = get_iomanager(out_file)
-    driver = get_larnd2supera(config_key)
-    reader = larnd2supera.reader.InputReader(driver.parser_run_config(),in_file)
+    driver = get_flow2supera(config_key)
+    reader = flow2supera.reader.InputReader(driver.parser_run_config(),in_file)
 
     id_vv=ROOT.std.vector("std::vector<unsigned long>")()
     value_vv=ROOT.std.vector("std::vector<float>")()
@@ -198,7 +198,7 @@ def run_supera(out_file='larcv.root',
 
     # store supera log dictionary
     if save_log:
-        np.savez('log_larnd2supera.npz',**logger)
+        np.savez('log_flow2supera.npz',**logger)
 
     print("done")   
 
