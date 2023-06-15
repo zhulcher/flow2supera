@@ -1,15 +1,14 @@
 import sys, os
 import h5py
+import h5flow
 import numpy as np
 import time
 import flow2supera
 import argparse
 import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
-from LarpixParser import event_parser as EventParser
+#from LarpixParser import event_parser as EventParser
 from larcv import larcv
-import pandas as pd
-
 
 def get_flow2supera(config_key):
 
@@ -21,7 +20,7 @@ def get_flow2supera(config_key):
     
     return driver 
 
-def log_supera_integrity_check(data,driver,log,verbose=False):
+def log_supera_integrity_check(data, driver, log, verbose=False):
 
     if not log:
         return
@@ -73,7 +72,6 @@ def log_supera_integrity_check(data,driver,log,verbose=False):
     log['out_cluster_sum'].append(cluster_sum)
     log['out_unass_sum'].append(unass_sum)
 
-
 # Fill SuperaAtomic class and hand off to label-making
 def run_supera(out_file='larcv.root',
                in_file='',
@@ -87,10 +85,10 @@ def run_supera(out_file='larcv.root',
 
     writer = get_iomanager(out_file)
     driver = get_flow2supera(config_key)
-    reader = flow2supera.reader.InputReader(driver.parser_run_config(),in_file)
+    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
 
-    id_vv=ROOT.std.vector("std::vector<unsigned long>")()
-    value_vv=ROOT.std.vector("std::vector<float>")()
+    id_vv = ROOT.std.vector("std::vector<unsigned long>")()
+    value_vv = ROOT.std.vector("std::vector<float>")()
 
     id_v=ROOT.std.vector("unsigned long")()
     value_v=ROOT.std.vector("float")()
@@ -127,7 +125,7 @@ def run_supera(out_file='larcv.root',
         input_data = reader.GetEntry(entry)
         is_good_event = reader.CheckIntegrity(input_data,ignore_bad_association)
         if not is_good_event:
-            print('[ERROR] Skipping the entry')
+            print('[ERROR] Entry', entry, 'is not valid; skipping')
             continue
         time_read = time.time() - t0
         
@@ -135,8 +133,6 @@ def run_supera(out_file='larcv.root',
         EventInput = driver.ReadEvent(input_data)
         time_convert = time.time() - t1
 
-        # TODO Seems to run, but how to check it's really working?
-        # TODO Should this be supera_driver or driver?
         t2 = time.time()
         driver.GenerateImageMeta(EventInput)
         driver.GenerateLabel(EventInput) 

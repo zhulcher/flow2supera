@@ -1,7 +1,8 @@
 import h5py as h5
+import h5flow
 import numpy as np
-from LarpixParser import event_parser as EventParser
-from LarpixParser.util import detector_configuration
+#from LarpixParser import event_parser as EventParser
+#from LarpixParser.util import detector_configuration
 
 class InputEvent:
     event_id = -1
@@ -13,7 +14,7 @@ class InputEvent:
     segment_index_min = -1
     event_separator = ''
 
-class InputReader:
+class FlowReader:
     
     def __init__(self,parser_run_config, input_files=None):
         self._mc_packets_assn = None
@@ -30,29 +31,25 @@ class InputReader:
         
         if input_files:
             self.ReadFile(input_files)
-    
 
     def __len__(self):
         if self._event_ids is None: return 0
         return len(self._event_ids)
 
-
     def __iter__(self):
         for entry in range(len(self)):
             yield self.GetEntry(entry)
 
-
-    def _correct_t0s(self,event_t0s,num_event):
-        # compute dt.
-        dt=event_t0s[1:]-event_t0s[:-1]
-        print(f'    Found {(dt==0).sum()} duplicate T0 values (removing)' )
-        print(f'    Entries removed: {np.where(dt==0)[0]+1}')
-        # generate a mask for dt>0
-        mask=np.insert(np.where(dt>0)[0]+1,0,0)
-        # apply mask
-        corrected_t0s = event_t0s[mask]
-        return corrected_t0s
-
+    #def _correct_t0s(self,event_t0s,num_event):
+    #    # compute dt.
+    #    dt=event_t0s[1:]-event_t0s[:-1]
+    #    print(f'    Found {(dt==0).sum()} duplicate T0 values (removing)' )
+    #    print(f'    Entries removed: {np.where(dt==0)[0]+1}')
+    #    # generate a mask for dt>0
+    #    mask=np.insert(np.where(dt>0)[0]+1,0,0)
+    #    # apply mask
+    #    corrected_t0s = event_t0s[mask]
+    #    return corrected_t0s
     
     def ReadFile(self,input_files,verbose=False):
         mc_packets_assn = []
@@ -118,8 +115,6 @@ class InputReader:
 
         # Now it's safe to assume all readout groups for every event shares the same T0
         self._event_t0s = self._event_t0s.flatten()
-
-
 
     def GetEvent(self,event_id):
         
