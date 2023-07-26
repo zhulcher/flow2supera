@@ -6,9 +6,9 @@ import numpy as np
 
 class InputEvent:
     event_id = -1
-    mc_packets_assn = None
+    #mc_packets_assn = None
     segments = None
-    packets  = None
+    calib_final_hits  = None
     trajectories = None
     t0 = -1
     segment_index_min = -1
@@ -17,8 +17,8 @@ class InputEvent:
 class FlowReader:
     
     def __init__(self,parser_run_config, input_files=None):
-        self._mc_packets_assn = None
-        self._packets = None
+        #self._mc_packets_assn = None
+        self._calib_final_hits = None
         self._segments = None
         self._trajectories = None
         self._vertices = None
@@ -52,49 +52,59 @@ class FlowReader:
     #    return corrected_t0s
     
     def ReadFile(self,input_files,verbose=False):
-        mc_packets_assn = []
-        packets  = []
+        #packets  = []
+        calib_final_hits  = []
         segments = []
         trajectories = []
-        vertices = []
+        t0s = []
+
+        #packets_path = '/charge/packets/data'
+        calib_final_hits_path = 'charge/calib_final_hits/data'
+        # TODO This will likely be renamed to "segments" soon in flow
+        segments_path = '/mc_truth/tracks/data'
+        trajectories_path = '/mc_truth/trajectories/data'
+        t0s_path = '/combined/t0/data'
         
         if type(input_files) == str:
             input_files = [input_files]
         
         self._is_sim = False
-        for f in input_files:
-            with h5.File(f,'r') as fin:
-                packets.append(fin['packets'][:])
-                self._is_sim = 'mc_packets_assn' in fin.keys()
-                if self._is_sim:
-                    mc_packets_assn.append(fin['mc_packets_assn'][:])
-                    segments.append(fin['tracks'][:])
-                    trajectories.append(fin['trajectories'][:])
-                    vertices.append(fin['vertices'][:])
-                    if verbose: print('Read-in:',f)
+        #for f in input_files:
+        # TODO For now, just one file at a time...event IDs are not unique
+        # between files (how do we handle this??)
+        with h5.File(f,'r') as fin:
+            calib_final_hits.append(fin[calib_final_hits_path][:])
+            self._is_sim = 'mc_truth' in fin.keys()
+            if self._is_sim:
+                #mc_packets_assn.append(fin['mc_packets_assn'][:])
+                segments.append(fin[segments_path][:])
+                trajectories.append(fin[trajectories_path][:])
+                t0s.append(fin[t0s_path][:])
+                if verbose: print('Read-in:',f)
                 
-        self._packets = np.concatenate(packets)
+        self._calib_final_hits = np.concatenate(calib_final_hits)
 
         if not self._is_sim:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
-        self._mc_packets_assn = np.concatenate(mc_packets_assn)
         self._segments  = np.concatenate(segments )
         self._trajectories = np.concatenate(trajectories)
-        self._vertices = np.concatenate(vertices)
+        self._event_t0s = np.concatenate(t0s)
+        #self._vertices = np.concatenate(vertices)
         
         # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._segments, self._vertices)
+        #self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._segments, self._vertices)
         
         packet_mask = self._packet2event != -1
-        ctr_packet  = len(self._packets)
+        ctr_packet  = len(self._calib_final_hits)
         ctr_invalid_packet = ctr_packet - packet_mask.sum()
         if verbose:
-            print('    %d (%.2f%%) packets without an event ID assignment. They will be ignored.' % (ctr_invalid_packet,
+            print('    %d (%.2f%%) calib_final_hits without an event ID assignment. They will be ignored.' % (ctr_invalid_packet,
                                                                                                      ctr_invalid_packet/ctr_packet)
                  )
         
         # create a list of unique Event IDs
+        #self._event_ids = np.unique(self._packet2event[packet_mask]).astype(np.int64)
         self._event_ids = np.unique(self._packet2event[packet_mask]).astype(np.int64)
         if verbose:
             missing_ids = [i for i in np.arange(np.min(self._event_ids),np.max(self._event_ids)+1,1) if not i in self._event_ids]
@@ -102,7 +112,7 @@ class FlowReader:
             print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
         
         # create a list of corresponding T0s        
-        self._event_t0s = EventParser.get_t0_event(self._vertices,self._run_config)
+        #self._event_t0s = EventParser.get_t0_event(self._vertices,self._run_config)
 
         # Assert strong assumptions here
         # the number of readout should be same as the number of valid Event IDs
@@ -127,7 +137,7 @@ class FlowReader:
         
         return GetEntry(index_loc[0])
 
-    def CheckIntegrity(self,data,fix_association=False):
+    def CheckIntegrity(self, data, ignore_bad_association=False):
 
         flag = True
         tid_range0 = np.array([t['trackID'] for t in data.trajectories])
@@ -144,12 +154,12 @@ class FlowReader:
         if not flag:
             return flag
 
-        seg_index = data.mc_packets_assn['track_ids']
+        #seg_index = data.mc_packets_assn['track_ids']
         # check if max index is within the number of segments
         max_index = seg_index.max()
         min_index = seg_index[seg_index>-1].min()
 
-        prefix = '[WARNING]' if fix_association else '[ERROR]'
+        prefix = '[WARNING]' if ignore_bad_association else '[ERROR]'
         if min_index < data.segment_index_min:
             # Bad segment index on low end
 
@@ -157,10 +167,10 @@ class FlowReader:
             print('        Index range of segments for this event:',data.segment_index_min,
                 '=>',data.segment_index_min+len(data.segments))
             flag = False
-            if fix_association:
+            if ignore_bad_association:
                 print('[WARNING] ignoring the bad association')
                 seg_index[seg_index<data.segment_index_min] = -1
-                data.mc_packets_assn['track_ids'] = seg_index
+                #data.mc_packets_assn['track_ids'] = seg_index
                 flag = True
 
         if (max_index - data.segment_index_min) >= len(data.segments):
@@ -169,10 +179,10 @@ class FlowReader:
             print('        Index range of segments for this event:',data.segment_index_min,
                 '=>',data.segment_index_min+len(data.segments))
             flag = False
-            if fix_association:
+            if ignore_bad_association:
                 print('[WARNING] ignoring the bad association')
                 seg_index[seg_index>=(data.segment_index_min+len(data.segments))] = -1
-                data.mc_packets_assn['track_ids'] = seg_index
+                #data.mc_packets_assn['track_ids'] = seg_index
                 flag = True
 
         return flag
@@ -195,8 +205,8 @@ class FlowReader:
 
         mask = self._packet2event == result.event_id
         
-        result.packets = self._packets[mask]
-        result.mc_packets_assn = self._mc_packets_assn[mask]
+        result.calib_final_hits = self._calib_final_hits[mask]
+        #result.mc_packets_assn = self._mc_packets_assn[mask]
         
         mask = self._segments[self._run_config['event_separator']] == result.event_id
         result.segments = self._segments[mask]
