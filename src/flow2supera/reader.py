@@ -51,7 +51,7 @@ class FlowReader:
     #    corrected_t0s = event_t0s[mask]
     #    return corrected_t0s
     
-    def ReadFile(self,input_files,verbose=False):
+    def ReadFile(self, input_files, verbose=False):
         #packets  = []
         calib_final_hits  = []
         segments = []
@@ -59,72 +59,45 @@ class FlowReader:
         t0s = []
 
         #packets_path = '/charge/packets/data'
+        events_path = 'charge/events/data'
         calib_final_hits_path = 'charge/calib_final_hits/data'
         # TODO This will likely be renamed to "segments" soon in flow
         segments_path = '/mc_truth/tracks/data'
         trajectories_path = '/mc_truth/trajectories/data'
         t0s_path = '/combined/t0/data'
-        
+
         if type(input_files) == str:
             input_files = [input_files]
         
         self._is_sim = False
-        #for f in input_files:
         # TODO For now, just one file at a time...event IDs are not unique
         # between files (how do we handle this??)
-        with h5.File(f,'r') as fin:
-            calib_final_hits.append(fin[calib_final_hits_path][:])
-            self._is_sim = 'mc_truth' in fin.keys()
-            if self._is_sim:
-                #mc_packets_assn.append(fin['mc_packets_assn'][:])
-                segments.append(fin[segments_path][:])
-                trajectories.append(fin[trajectories_path][:])
-                t0s.append(fin[t0s_path][:])
-                if verbose: print('Read-in:',f)
-                
-        self._calib_final_hits = np.concatenate(calib_final_hits)
+        for f in input_files:
+            with h5.File(f, 'r') as fin:
+                flow_manager = h5flow.data.H5FlowDataManager(f, 'r')
+                events = flow_manager[events_path]
+                calib_final_hits.append(fin[calib_final_hits_path][:])
+                self._is_sim = 'mc_truth' in fin.keys()
+                if self._is_sim:
+                    #mc_packets_assn.append(fin['mc_packets_assn'][:])
+                    segments.append(fin[segments_path][:])
+                    trajectories.append(fin[trajectories_path][:])
+                    t0s.append(fin[t0s_path][:])
+                    if verbose: print('Read-in:',f)
+                    
+            self._calib_final_hits = np.concatenate(calib_final_hits)
 
-        if not self._is_sim:
-            print('Currently only simulation is supoprted')
-            raise NotImplementedError
-        self._segments  = np.concatenate(segments )
-        self._trajectories = np.concatenate(trajectories)
-        self._event_t0s = np.concatenate(t0s)
-        #self._vertices = np.concatenate(vertices)
+            if not self._is_sim:
+                print('Currently only simulation is supoprted')
+                raise NotImplementedError
+            self._segments  = np.concatenate(segments )
+            self._trajectories = np.concatenate(trajectories)
+            self._event_t0s = np.concatenate(t0s)
+            #self._vertices = np.concatenate(vertices)
         
-        # create mapping
-        #self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._segments, self._vertices)
-        
-        packet_mask = self._packet2event != -1
-        ctr_packet  = len(self._calib_final_hits)
-        ctr_invalid_packet = ctr_packet - packet_mask.sum()
-        if verbose:
-            print('    %d (%.2f%%) calib_final_hits without an event ID assignment. They will be ignored.' % (ctr_invalid_packet,
-                                                                                                     ctr_invalid_packet/ctr_packet)
-                 )
-        
-        # create a list of unique Event IDs
-        #self._event_ids = np.unique(self._packet2event[packet_mask]).astype(np.int64)
-        self._event_ids = np.unique(self._packet2event[packet_mask]).astype(np.int64)
-        if verbose:
-            missing_ids = [i for i in np.arange(np.min(self._event_ids),np.max(self._event_ids)+1,1) if not i in self._event_ids]
-            print('    %d unique event IDs found.' % len(self._event_ids))
-            print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
-        
-        # create a list of corresponding T0s        
-        #self._event_t0s = EventParser.get_t0_event(self._vertices,self._run_config)
-
-        # Assert strong assumptions here
-        # the number of readout should be same as the number of valid Event IDs
-        if len(self._event_ids) > len(self._event_t0s):
-            raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
-
-        if len(self._event_ids) < len(self._event_t0s):
-            print('    %d T0s found > %d unique event IDs.' % (len(self._event_t0s),len(self._event_ids)))
-            print('    Ignoring the extra t0s...')
-
-        # Now it's safe to assume all readout groups for every event shares the same T0
-        self._event_t0s = self._event_t0s.flatten()
+    ### TODO ###
+    # Fill event t0s
+    # Fill event IDs
 
     def GetEvent(self,event_id):
         

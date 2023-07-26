@@ -123,7 +123,7 @@ def run_supera(out_file='larcv.root',
 
         t0 = time.time()
         input_data = reader.GetEntry(entry)
-        is_good_event = reader.CheckIntegrity(input_data,ignore_bad_association)
+        is_good_event = reader.CheckIntegrity(input_data, ignore_bad_association)
         if not is_good_event:
             print('[ERROR] Entry', entry, 'is not valid; skipping')
             continue
