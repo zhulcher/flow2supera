@@ -21,7 +21,7 @@ setup(
     url='https://github.com/andrewmogan/flow2supera',
     scripts=['bin/run_flow2supera.py'],
     packages=['flow2supera','flow2supera.pdg_data','flow2supera.config_data'],
-    package_dir={'': 'python'},
+    package_dir={'': 'src'},
     package_data={'flow2supera': ['pdg_data/pdg.npz','config_data/*.yaml']},
     install_requires=[
         'numpy',
