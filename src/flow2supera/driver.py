@@ -474,7 +474,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
-        p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2)+pow(p.px,2)+pow(p.py,2)+pow(p.pz,2))
+        p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
+                                pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
+        # TODO Is this correct? Shouldn't the vertex be the interaction vertex?
+        # And this should be p.start_pt or something?
         p.vtx    = supera.Vertex(trajectory['xyz_start'][0], 
                                  trajectory['xyz_start'][1], 
                                  trajectory['xyz_start'][2], 
