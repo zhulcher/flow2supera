@@ -58,33 +58,49 @@ class FlowReader:
         trajectories = []
         t0s = []
 
-        #packets_path = '/charge/packets/data'
-        events_path = 'charge/events/data'
-        calib_final_hits_path = 'charge/calib_final_hits/data'
-        # TODO This will likely be renamed to "segments" soon in flow
-        segments_path = '/mc_truth/tracks/data'
-        trajectories_path = '/mc_truth/trajectories/data'
-        t0s_path = '/combined/t0/data'
+        # H5Flow's H5FlowDataManager class associated datasets through references
+        # These paths help us get the correct associations
+        events_path = 'charge/events/'
+        t0s_path = '/combined/t0/'
+        calib_final_hits_path = 'charge/calib_final_hits/'
+        calib_prompt_hits_path = 'charge/calib_prompt_hits/'
+        packets_path = 'charge/packets'
+        # TODO "tracks" will likely be renamed to "segments" soon in flow
+        segments_path = '/mc_truth/tracks/'
+        trajectories_path = '/mc_truth/trajectories/'
 
         if type(input_files) == str:
             input_files = [input_files]
         
-        self._is_sim = False
-        # TODO For now, just one file at a time...event IDs are not unique
-        # between files (how do we handle this??)
+        self._is_sim = True # TODO Should default to False
         for f in input_files:
             with h5.File(f, 'r') as fin:
-                flow_manager = h5flow.data.H5FlowDataManager(f, 'r')
-                events = flow_manager[events_path]
-                calib_final_hits.append(fin[calib_final_hits_path][:])
-                self._is_sim = 'mc_truth' in fin.keys()
+                flow_manager = h5flow.data.H5FlowDataManager(fin, 'r')
+                events = flow_manager[events_path+'data']
+                calib_final_hits.append(flow_manager[events_path, 
+                                                     calib_final_hits_path])
+                t0s.append(flow_manager[events_path, t0s_path])
+                #self._is_sim = 'mc_truth' in fin.keys()
                 if self._is_sim:
                     #mc_packets_assn.append(fin['mc_packets_assn'][:])
-                    segments.append(fin[segments_path][:])
-                    trajectories.append(fin[trajectories_path][:])
-                    t0s.append(fin[t0s_path][:])
-                    if verbose: print('Read-in:',f)
+                    # TODO Truth backtracking should be streamlined starting in MiniRun4
+                    segments.append(flow_manager[events_path,
+                                                 calib_final_hits_path,
+                                                 calib_prompt_hits_path,
+                                                 packets_path,
+                                                 segments_path])
+                    trajectories.append(flow_manager[events_path,
+                                                     calib_final_hits_path,
+                                                     calib_prompt_hits_path,
+                                                     packets_path,
+                                                     segments_path,
+                                                     trajectories_path])
+                    if verbose: print('Read file:', fin )
                     
+            # TODO Event IDs are not unique between files, I think. This needs to be 
+            # checked. Maybe we just enforce one file per run of flow2supera? Seems
+            # inefficient...
+            self._events = np.concatenate(events)
             self._calib_final_hits = np.concatenate(calib_final_hits)
 
             if not self._is_sim:
