@@ -1,4 +1,4 @@
-import h5py as h5
+import h5py 
 import h5flow
 import numpy as np
 
@@ -13,7 +13,7 @@ class InputEvent:
 
 class FlowReader:
     
-    def __init__(self,parser_run_config, input_files=None):
+    def __init__(self, parser_run_config, input_files=None):
         self._calib_final_hits = None
         self._segments = None
         self._trajectories = None
@@ -23,7 +23,7 @@ class FlowReader:
         self._if_spill = False
         self._run_config = parser_run_config
         self._is_sim = False
-        
+
         if input_files:
             self.ReadFile(input_files)
 
@@ -47,7 +47,6 @@ class FlowReader:
     #    return corrected_t0s
     
     def ReadFile(self, input_files, verbose=False):
-        #packets  = []
         event_ids = []
         calib_final_hits  = []
         segments = []
@@ -57,6 +56,7 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
+        events_data_path = 'charge/events/data'
         t0s_path = '/combined/t0/'
         calib_final_hits_path = 'charge/calib_final_hits/'
         calib_prompt_hits_path = 'charge/calib_prompt_hits/'
@@ -68,15 +68,17 @@ class FlowReader:
         if type(input_files) == str:
             input_files = [input_files]
         
-        self._is_sim = True # TODO Should default to False
+        self._is_sim = False 
         for f in input_files:
-            with h5.File(f, 'r') as fin:
-                flow_manager = h5flow.data.H5FlowDataManager(fin, 'r')
-                events = flow_manager[events_path+'data']
+            flow_manager = h5flow.data.H5FlowDataManager(f, 'r')
+            with h5py.File(f, 'r') as fin:
+                events = flow_manager[events_path]
+                events_data = events['data']
+                event_ids.append(events_data['id'])
                 calib_final_hits.append(flow_manager[events_path, 
                                                      calib_final_hits_path])
                 t0s.append(flow_manager[events_path, t0s_path])
-                #self._is_sim = 'mc_truth' in fin.keys()
+                self._is_sim = 'mc_truth' in fin.keys()
                 if self._is_sim:
                     #mc_packets_assn.append(fin['mc_packets_assn'][:])
                     # TODO Truth backtracking should be streamlined starting in MiniRun4
@@ -93,22 +95,18 @@ class FlowReader:
                                                      trajectories_path])
                     if verbose: print('Read file:', fin )
                     
-            # TODO Event IDs are not unique between files, I think. This needs to be 
-            # checked. Maybe we just enforce one file per run of flow2supera? Seems
-            # inefficient...
-            self._event_ids = np.concatenate(event_ids)
-            self._calib_final_hits = np.concatenate(calib_final_hits)
-            self._t0s = np.concatenate(t0s)
-            self._segments = np.concatenate(segments)
-            self._trajectories = np.concatenate(trajectories)
+            # Stack datasets so that there's a "file index" preceding the event index
+            self._event_ids = np.stack(event_ids)
+            self._event_t0s = np.stack(t0s)
+            self._calib_final_hits = np.stack(calib_final_hits)
+            self._t0s = np.stack(t0s)
+            self._segments = np.stack(segments)
+            self._trajectories = np.stack(trajectories)
 
             if not self._is_sim:
                 print('Currently only simulation is supoprted')
                 raise NotImplementedError
         
-        if len(self._event_ids) > len(self._event_t0s):
-            raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
-
     # TODO I think this isn't necessary anymore? 
     #def GetEvent(self, event_id):
     #    
