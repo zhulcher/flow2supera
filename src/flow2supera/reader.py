@@ -1,12 +1,9 @@
 import h5py as h5
 import h5flow
 import numpy as np
-#from LarpixParser import event_parser as EventParser
-#from LarpixParser.util import detector_configuration
 
 class InputEvent:
     event_id = -1
-    #mc_packets_assn = None
     segments = None
     calib_final_hits  = None
     trajectories = None
@@ -17,12 +14,10 @@ class InputEvent:
 class FlowReader:
     
     def __init__(self,parser_run_config, input_files=None):
-        #self._mc_packets_assn = None
         self._calib_final_hits = None
         self._segments = None
         self._trajectories = None
         self._vertices = None
-        self._packet2event = None
         self._event_ids = None
         self._event_t0s = None
         self._if_spill = False
@@ -53,6 +48,7 @@ class FlowReader:
     
     def ReadFile(self, input_files, verbose=False):
         #packets  = []
+        event_ids = []
         calib_final_hits  = []
         segments = []
         trajectories = []
@@ -100,85 +96,41 @@ class FlowReader:
             # TODO Event IDs are not unique between files, I think. This needs to be 
             # checked. Maybe we just enforce one file per run of flow2supera? Seems
             # inefficient...
-            self._events = np.concatenate(events)
+            self._event_ids = np.concatenate(event_ids)
             self._calib_final_hits = np.concatenate(calib_final_hits)
+            self._t0s = np.concatenate(t0s)
+            self._segments = np.concatenate(segments)
+            self._trajectories = np.concatenate(trajectories)
 
             if not self._is_sim:
                 print('Currently only simulation is supoprted')
                 raise NotImplementedError
-            self._segments  = np.concatenate(segments )
-            self._trajectories = np.concatenate(trajectories)
-            self._event_t0s = np.concatenate(t0s)
-            #self._vertices = np.concatenate(vertices)
         
-    ### TODO ###
-    # Fill event t0s
-    # Fill event IDs
+        if len(self._event_ids) > len(self._event_t0s):
+            raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
 
-    def GetEvent(self,event_id):
+    # TODO I think this isn't necessary anymore? 
+    #def GetEvent(self, event_id):
+    #    
+    #    index_loc = (self._event_ids == event_id).nonzero()[0]
+    #    
+    #    if len(index_loc) < 1:
+    #        print('Event ID',event_id,'not found in the data')
+    #        print('Invalid read request (returning None)')
+    #        return None
+    #    
+    #    return GetEntry(index_loc[0])
+
+    def GetEntry(self, index):
         
-        index_loc = (self._event_ids == event_id).nonzero()[0]
-        
-        if len(index_loc) < 1:
-            print('Event ID',event_id,'not found in the data')
-            print('Invalid read request (returning None)')
-            return None
-        
-        return GetEntry(index_loc[0])
+        #event_id = -1
+        #segments = None
+        #calib_final_hits  = None
+        #trajectories = None
+        #t0 = -1
+        #segment_index_min = -1
+        #event_separator = ''
 
-    def CheckIntegrity(self, data, ignore_bad_association=False):
-
-        flag = True
-        tid_range0 = np.array([t['trackID'] for t in data.trajectories])
-        tid_range1 = np.array([s['trackID'] for s in data.segments    ])
-
-        if tid_range0.max() < tid_range1.max():
-            print('[ERROR] Max Track ID in the segments exceeds the maximum of the trajectories')
-            flag = False
-
-        if tid_range0.min() > tid_range1.min():
-            print('[ERROR] Min Track ID in the segments is below the minimum of the trajectories')
-            flag = False
-
-        if not flag:
-            return flag
-
-        #seg_index = data.mc_packets_assn['track_ids']
-        # check if max index is within the number of segments
-        max_index = seg_index.max()
-        min_index = seg_index[seg_index>-1].min()
-
-        prefix = '[WARNING]' if ignore_bad_association else '[ERROR]'
-        if min_index < data.segment_index_min:
-            # Bad segment index on low end
-
-            print(prefix,'Minimum segment index from the association:',min_index)
-            print('        Index range of segments for this event:',data.segment_index_min,
-                '=>',data.segment_index_min+len(data.segments))
-            flag = False
-            if ignore_bad_association:
-                print('[WARNING] ignoring the bad association')
-                seg_index[seg_index<data.segment_index_min] = -1
-                #data.mc_packets_assn['track_ids'] = seg_index
-                flag = True
-
-        if (max_index - data.segment_index_min) >= len(data.segments):
-            # Bad segment index on high end
-            print(prefix,'Maximum segment index from the association:',max_index)
-            print('        Index range of segments for this event:',data.segment_index_min,
-                '=>',data.segment_index_min+len(data.segments))
-            flag = False
-            if ignore_bad_association:
-                print('[WARNING] ignoring the bad association')
-                seg_index[seg_index>=(data.segment_index_min+len(data.segments))] = -1
-                #data.mc_packets_assn['track_ids'] = seg_index
-                flag = True
-
-        return flag
-
-
-    def GetEntry(self,index):
-        
         if index >= len(self._event_ids):
             print('Entry',index,'is above allowed entry index (<%d)' % len(self._event_ids))
             print('Invalid read request (returning None)')
@@ -187,22 +139,16 @@ class FlowReader:
         # Now return event info for the found index
         result = InputEvent()
 
+        # TODO Is this necessary anymore?
         result.event_separator = self._run_config['event_separator']
         
         result.event_id = self._event_ids[index]
-        result.t0 = self._event_t0s[result.event_id]
+        result.t0       = self._event_t0s[result.event_id]
 
-        mask = self._packet2event == result.event_id
-        
-        result.calib_final_hits = self._calib_final_hits[mask]
+        result.calib_final_hits = self._calib_final_hits[result.event_id]
+        result.segments = self._segments[result.event_id]
+        result.trajectories = self._trajectories[mask.event_id]
         #result.mc_packets_assn = self._mc_packets_assn[mask]
-        
-        mask = self._segments[self._run_config['event_separator']] == result.event_id
-        result.segments = self._segments[mask]
-        
-        result.segment_index_min = mask.nonzero()[0][0]
-        
-        mask = self._trajectories[self._run_config['event_separator']] == result.event_id
-        result.trajectories = self._trajectories[mask]
+        #result.segment_index_min = mask.nonzero()[0][0]
         
         return result  
