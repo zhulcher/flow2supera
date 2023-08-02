@@ -29,6 +29,7 @@ class FlowReader:
 
     def __len__(self):
         if self._event_ids is None: return 0
+        # TODO How to handle event_ids shape?
         return len(self._event_ids)
 
     def __iter__(self):
@@ -96,12 +97,16 @@ class FlowReader:
                     if verbose: print('Read file:', fin )
                     
             # Stack datasets so that there's a "file index" preceding the event index
-            self._event_ids = np.stack(event_ids)
+            #self._event_ids = np.stack(event_ids)
+            self._event_ids = np.concatenate(event_ids)
             self._event_t0s = np.stack(t0s)
             self._calib_final_hits = np.stack(calib_final_hits)
             self._t0s = np.stack(t0s)
             self._segments = np.stack(segments)
             self._trajectories = np.stack(trajectories)
+
+            print('len event_ids:', len(self._event_ids))
+            print('len Reader:', len(self))
 
             if not self._is_sim:
                 print('Currently only simulation is supoprted')
@@ -145,7 +150,7 @@ class FlowReader:
 
         result.calib_final_hits = self._calib_final_hits[result.event_id]
         result.segments = self._segments[result.event_id]
-        result.trajectories = self._trajectories[mask.event_id]
+        result.trajectories = self._trajectories[result.event_id]
         #result.mc_packets_assn = self._mc_packets_assn[mask]
         #result.segment_index_min = mask.nonzero()[0][0]
         
