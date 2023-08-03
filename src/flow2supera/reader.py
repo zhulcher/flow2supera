@@ -14,6 +14,9 @@ class InputEvent:
 class FlowReader:
     
     def __init__(self, parser_run_config, input_files=None):
+        self._input_files = input_files
+        if not isinstance(input_files, str):
+            raise TypeError('Input file must be a str type')
         self._calib_final_hits = None
         self._segments = None
         self._trajectories = None
@@ -29,12 +32,11 @@ class FlowReader:
 
     def __len__(self):
         if self._event_ids is None: return 0
-        # TODO How to handle event_ids shape?
         return len(self._event_ids)
 
     def __iter__(self):
         for entry in range(len(self)):
-            yield self.GetEntry(entry)
+            yield self.GetEvent(entry)
 
     #def _correct_t0s(self,event_t0s,num_event):
     #    # compute dt.
@@ -111,31 +113,12 @@ class FlowReader:
             if not self._is_sim:
                 print('Currently only simulation is supoprted')
                 raise NotImplementedError
-        
-    # TODO I think this isn't necessary anymore? 
-    #def GetEvent(self, event_id):
-    #    
-    #    index_loc = (self._event_ids == event_id).nonzero()[0]
-    #    
-    #    if len(index_loc) < 1:
-    #        print('Event ID',event_id,'not found in the data')
-    #        print('Invalid read request (returning None)')
-    #        return None
-    #    
-    #    return GetEntry(index_loc[0])
 
-    def GetEntry(self, index):
+    #def GetEntry(self, file_index, event_index):
+    def GetEvent(self, event_index):
         
-        #event_id = -1
-        #segments = None
-        #calib_final_hits  = None
-        #trajectories = None
-        #t0 = -1
-        #segment_index_min = -1
-        #event_separator = ''
-
-        if index >= len(self._event_ids):
-            print('Entry',index,'is above allowed entry index (<%d)' % len(self._event_ids))
+        if event_index >= len(self._event_ids):
+            print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._event_ids)))
             print('Invalid read request (returning None)')
             return None
         
@@ -143,7 +126,7 @@ class FlowReader:
         result = InputEvent()
 
         # TODO Is this necessary anymore?
-        result.event_separator = self._run_config['event_separator']
+        #result.event_separator = self._run_config['event_separator']
         
         result.event_id = self._event_ids[index]
         result.t0       = self._event_t0s[result.event_id]
