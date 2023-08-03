@@ -170,7 +170,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
         #    and store in pcloud
-        x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
+        #x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
         if verbose:
             print('Got x,y,z,dE = ', x, y, z, dE)
 
@@ -396,19 +396,27 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         return supera_event
 
     def TrajectoryToParticle(self, trajectory):
+        ### What we have access to in new flow format: ###
+        # ('event_id', 'vertex_id', 'traj_id', 'local_traj_id', 'parent_id', 'E_start', 'pxyz_start', 
+        # 'xyz_start', 't_start', 'E_end', 'pxyz_end', 'xyz_end', 't_end', 'pdg_id', 
+        # 'start_process', 'start_subprocess', 'end_process', 'end_subprocess')
+        ###############################################################################################
+
         p = supera.Particle()
         # Larnd-sim stores a lot of these fields as numpy.uint32, 
         # but Supera/LArCV want a regular int, hence the type casting
         # TODO Is there a cleaner way to handle this?
-        p.id             = int(trajectory['eventID'])
-        #p.interaction_id = trajectory['interactionID']
+        p.id             = int(trajectory['event_id'])
+        p.interaction_id = trajectory['vertex_id']
         p.trackid        = int(trajectory['trackID'])
-        p.pdg            = int(trajectory['pdgId'])
+        p.pdg            = int(trajectory['pdg_id'])
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
-        p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
-                                pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
+        # TODO Verify this new thing works
+        p.energy_init = trajectory['E_start']
+        #p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
+        #                        pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
         # TODO Is this correct? Shouldn't the vertex be the interaction vertex?
         # And this should be p.start_pt or something?
         p.vtx    = supera.Vertex(trajectory['xyz_start'][0], 
@@ -422,19 +430,18 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                                  trajectory['t_end']
         )
 
-        traj_parent_id = trajectory['parentID']
+        traj_parent_id = trajectory['parent_id']
         # This now causes errors?
         #if traj_parent_id == -1: p.parent_trackid = supera.kINVALID_TRACKID
         if traj_parent_id == -1: p.parent_trackid = p.trackid
-        else:                    p.parent_trackid = int(trajectory['parentID'])
+        else:                    p.parent_trackid = int(trajectory['parent_id'])
 
         if supera.kINVALID_TRACKID in [p.trackid, p.parent_trackid]:
-            print('Unexpected to have an invalid track ID',p.trackid,
-                  'or parent track ID',p.parent_trackid)
+            print('Unexpected to have an invalid track ID', p.trackid,
+                  'or parent track ID', p.parent_trackid)
             raise ValueError
         
         return p
-        
         
     def SetProcessType(self, edepsim_part, supera_part, supera_parent):
         pdg_code    = supera_part.pdg
