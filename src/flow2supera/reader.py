@@ -27,6 +27,7 @@ class FlowReader:
         #self._vertices = None
         self._event_ids = None
         self._event_t0s = None
+        self._interactions = None
         #self._if_spill = False
         self._run_config = parser_run_config
         self._is_sim = False
@@ -55,12 +56,13 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
-        events_data_path = 'charge/events/data'
-        hit_ref_region_path = 'charge/events/ref/charge/calib_final_hits/ref_region'
+        events_data_path = 'charge/events/data/'
+        hit_ref_region_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         t0s_path = '/combined/t0/'
         calib_final_hits_path = 'charge/calib_final_hits/'
         calib_prompt_hits_path = 'charge/calib_prompt_hits/'
         packets_path = 'charge/packets'
+        interactions_path = 'mc_truth/interactions/'
         segments_path = 'mc_truth/segments/'
         trajectories_path = 'mc_truth/trajectories/'
 
@@ -103,6 +105,7 @@ class FlowReader:
                                                   packets_path,
                                                   segments_path,
                                                   trajectories_path]
+                self._interactions = flow_manager[interactions_path]
                 
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
