@@ -1,6 +1,6 @@
 import time
 import edep2supera, ROOT
-from ROOT import supera,std,TG4TrajectoryPoint
+from ROOT import supera, std, TG4TrajectoryPoint
 import numpy as np
 import LarpixParser
 from LarpixParser import hit_parser as HitParser
@@ -35,12 +35,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         self._ignore_bad_association=True
         print("Initialized SuperaDriver class")
 
-
     def parser_run_config(self):
         return self._run_config
 
-
-    def log(self,data_holder):
+    def log(self, data_holder):
 
         for key in self.LOG_KEYS:
             if key in data_holder:
@@ -48,8 +46,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             data_holder[key]=[]
         self._log = data_holder
 
-
-    def LoadPropertyConfigs(self,cfg_dict):
+    def LoadPropertyConfigs(self, cfg_dict):
 
         # Expect only PropertyKeyword or (TileLayout,DetectorProperties). Not both.
         if cfg_dict.get('PropertyKeyword',None):
@@ -57,8 +54,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 print('PropertyKeyword provided:', cfg_dict['PropertyKeyword'])
                 print('But also founnd below:')
                 for keyword in ['TileLayout','DetectorProperties']:
-                    print('%s: "%s"' % (keyword,cfg_dict.get(keyword,None)))
-                    print('Bool',bool(cfg_dict.get(keyword,None)))
+                    print('%s: "%s"' % (keyword,cfg_dict.get(keyword, None)))
+                    print('Bool', bool(cfg_dict.get(keyword,None)))
 
                 print('You cannot specify duplicated property infomration!')
                 return False
@@ -66,7 +63,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 try:
                     self._run_config, self._geom_dict = LarpixParser.util.detector_configuration(cfg_dict['PropertyKeyword'])
                 except ValueError:
-                    print('Failed to load with PropertyKeyword',cfg_dict['PropertyKeyword'])
+                    print('Failed to load with PropertyKeyword', cfg_dict['PropertyKeyword'])
                     print('Supported types:', LarpixParser.util.configuration_keywords())
                     return False
         else:
@@ -92,7 +89,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 self._run_config[key]=val
         return True
 
-
     def ConfigureFromFile(self,fname):
         with open(fname,'r') as f:
             cfg=yaml.load(f.read(),Loader=Loader)
@@ -110,22 +106,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         super().ConfigureFromFile(fname)
 
-
-    def PoCA(self, a, b, pt, scalar=False):
-        
-        ab = b - a
-        
-        t = (pt - a) * ab
-        
-        if t <= 0.: 
-            return 0. if scalar else a
-        else:
-            denom = ab * ab
-            if t >= denom:
-                return 1. if scalar else b
-            else:
-                return t/denom if scalar else a + ab * t/denom
-
     def ConfigureFromText(self,txt):
         cfg=yaml.load(txt,Loader=Loader)
         if not self.LoadPropertyConfigs(cfg):
@@ -134,7 +114,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 self._electron_energy_threshold
                 )
         super().ConfigureFromText(txt)
-
 
     def ReadEvent(self, data, verbose=False):
         
@@ -150,8 +129,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
-        max_trackid = max(data.trajectories['trackID'].max(),data.segments['trackID'].max())
-        self._trackid2idx.resize(int(max_trackid+1),supera.kINVALID_INDEX)
+        max_trackid = max(data.trajectories['trackID'].max(), data.segments['trackID'].max())
+        self._trackid2idx.resize(int(max_trackid+1), supera.kINVALID_INDEX)
         for traj in data.trajectories:
             # print("traj",traj)
             part_input = supera.ParticleInput()
@@ -177,7 +156,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         start_time = time.time()  
 
         # 2. Fill parent information for ParticleInputs created in previous loop
-        for i,part in enumerate(supera_event):
+        for i, part in enumerate(supera_event):
             traj = data.trajectories[i]
 
             parent=None            
@@ -187,7 +166,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     parent = supera_event[parent_index].part
                     part.part.parent_pdg = parent.pdg
                     
-            self.SetProcessType(traj,part.part,parent)
+            self.SetProcessType(traj, part.part, parent)
 
         # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
         #    and store in pcloud
@@ -218,7 +197,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         seg_pt0   = supera.Point3D()
         seg_pt1   = supera.Point3D()
         packet_pt = supera.Point3D()
-        poca_pt   = supera.Point3D()
         seg_flag  = None
         seg_dist  = None
 
@@ -274,57 +252,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             packet_fractions = np.array(ass_fractions[ip])
             packet_edeps = [None] * len(packet_segments)
 
-            #tids = [data.segments[packet_segments[idx]]['trackID'] for idx in range(packet_segments.shape[0])]
-            #debug1 = 10 in tids
-            #debug2 = False
-            #if debug1:
-            #    d='1068 1273 1274 1290 1320 1342 1375 1425 1463 1472 1473 1479 1517 1069 1071 1078 1089 1091 1093 1098 1102 1114 1149 1171 1235 1242 1250 1251 1253 1256 1081 1084 1177 1178 1092 1099 1100 1103 1130 1179 1270 1544 1576 1587 1590 1592 1597 1610 1611 1628 1636 1639 1545 1287 1376 1288 1291 1293 1584 1588 1593 1595 1608 1151 1152 1218 1224 1556 1849'
-            #    for t in [int(val) for val in d.split()]:
-            #        if t in tids:
-            #            debug2=True
-            #            break
-            #if debug1 and debug2:
-            #    verbose = True
-            #else:
-            #    verbose = False
-
             # Initialize seg_flag once 
             if seg_flag is None:
                 seg_flag = np.zeros(shape=(packet_segments.shape[0]),dtype=bool)
                 seg_dist = np.zeros(shape=(packet_segments.shape[0]),dtype=float)
             seg_flag[:] = True
             seg_dist[:] = 1.e9
-
-            # Step 1. Compute the distance and reject some segments (see above comments for details)
-            for it in range(packet_segments.shape[0]):
-                seg_idx = packet_segments[it]
-                if seg_idx == -1: 
-                    seg_flag[it]=False
-                    continue                
-                # If logging, record the sum of the raw packet fraction
-                if not self._log is None:
-                    self._log['ass_frac'][-1] += packet_fractions[it]
-                # Access the segment
-                seg = data.segments[seg_idx]
-                # Compute the Point of Closest Approach as well as estimation of time.
-                edep = supera.EDep()
-                seg_pt0.x, seg_pt0.y, seg_pt0.z = seg['x_start'], seg['y_start'], seg['z_start']
-                seg_pt1.x, seg_pt1.y, seg_pt1.z = seg['x_end'], seg['y_end'], seg['z_end']
-                packet_pt.x, packet_pt.y, packet_pt.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
-
-                if seg['t0_start'] < seg['t0_end']:
-                    time_frac = self.PoCA(seg_pt0,seg_pt1,packet_pt,scalar=True)
-                    edep.t = seg['t0_start'] + time_frac * (seg['t0_end'  ] - seg['t0_start'])
-                    poca_pt = seg_pt0 + (seg_pt1 - seg_pt0) * time_frac
-                else:
-                    time_frac = self.PoCA(seg_pt1,seg_pt0,packet_pt,scalar=True)
-                    edep.t = seg['t0_end'  ] + time_frac * (seg['t0_start'] - seg['t0_end'  ])
-                    poca_pt = seg_pt1 + (seg_pt0 - seg_pt1) * time_frac
-
-                seg_dist[it] = poca_pt.distance(packet_pt)
-                edep.x, edep.y, edep.z = packet_pt.x, packet_pt.y, packet_pt.z
-                edep.dedx = seg['dEdx']
-                packet_edeps[it] = edep
 
             if verbose:
                 print('[INFO] Assessing packet',ip)
