@@ -175,65 +175,18 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     
             self.SetProcessType(traj, part.part, parent)
 
+        # TODO I think this is now loop over hits and backtracked hits using ref_region
         # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
         #    and store in pcloud
         #x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
-        if verbose:
-            print('Got x,y,z,dE = ', x, y, z, dE)
 
         start_time = time.time()
 
         ass_segments = data.mc_packets_assn['track_ids']
         ass_fractions = data.mc_packets_assn['fraction']
         
-        # Check if the data.first_track_id is consistent with track_ids.
-        # Commented out on May 15 2023 - the below code is redundant with np.nonzero in reader.py
-        #bad_track_ids = [ v for v in np.unique(track_ids[track_ids<data.first_track_id]) if not v == -1]
-        #if len(bad_track_ids):
-        #    print(f'\n[ERROR] unexpected track ID found {bad_track_ids} (first track ID in the event {data.first_track_id})')
-        #    for bad_tid in bad_track_ids:
-        #        print(f'    Track ID {bad_tid} ... associated fraction {ass_fractions[np.where(track_ids==bad_tid)]}')
-        if not self._log is None:
-            #if len(bad_track_ids):
-            #    self._log['bad_track_id'][-1]+=1
-            self._log['packet_total'][-1]+=len(data.packets)
-
-        ass_segments = np.subtract(ass_segments, data.segment_index_min*(ass_segments!=-1))
-
-        # Define some objects that are repeatedly used within the loop
-        seg_pt0   = supera.Point3D()
-        seg_pt1   = supera.Point3D()
-        packet_pt = supera.Point3D()
-        seg_flag  = None
-        seg_dist  = None
-
-        # a list to keep energy depositions w/o true association
-        self._edeps_unassociated.clear() 
-        self._edeps_unassociated.reserve(len(data.packets))
-        self._edeps_all.clear();
-        self._edeps_all.reserve(len(data.packets))
-        self._mm2cm = 0.1 # For converting packet x,y,z values
-
-        #
         # Loop over packets and decide particle trajectory segments that are associated with it.
         # Also calculate how much fraction of the packet value should be associated to this particle.
-        #
-        # Loop over packets, and for each packet:
-        #   Step 1. Loop over associated segments and calculate how far the packet location (3D point)
-        #           is with respect to the truth segment (3D line). If the distance is larger than the
-        #           parameter self._ass_distance_limit, ignore this segment from the association. If 
-        #           this step results in no associated segment to this packet, assign the packet as
-        #           self._edeps_unassociated container and continue.
-        #
-        #   Step 2. Calculate threshold on the associated fraction by f_min = self._ass_charge_limit/Q
-        #           where Q is the total charge stored in the packet. Ignore the associated segments if its
-        #           fraction is smaller than f_min. If this step results in no associated segment to this
-        #           packet, associate the entire fraction to the segment with the largest fraction.
-        #
-        #   Step 3. If there is more than one segment remained with association to this packet, re-normalize
-        #           the fraction array within the remaining elements and compute the associated charge fraction
-        #           to each segment, store EDeps to corresponding particle object.
-        #
         check_raw_sum=0
         check_ana_sum=0
         for ip, packet in enumerate(data.packets):
@@ -306,100 +259,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 check_ana_sum += packet_edeps[it].e
                 continue
 
-            # Check (and log if needed) if the number of associations is saturated 
-            if not -1 in packet_segments:
-                if verbose:
-                    print('[WARNING] found',len(packet_segments),'associated track IDs maxing out the recording array size')
-                if not self._log is None:
-                    self._log['ass_saturation'][-1] += 1
-
-            # Step 2. Claculate the fraction min threshold and ignore segments with a fraction value below
-            frac_min = 0
-            nan_fraction_found=False
-            if abs(dE[ip])>0.:
-                frac_min = abs(self._ass_charge_limit / dE[ip])
-            for it in range(packet_fractions.shape[0]):
-                # If the associated fraction of this segment is nan, disregard this segment
-                if np.isnan(packet_fractions[it]):
-                    seg_flag[it]=False
-                    nan_fraction_found=True
-                    continue
-                if seg_dist[it] > self._ass_distance_limit:
-                    seg_flag[it]=False
-                    continue
-                seg_flag[it] = abs(packet_fractions[it]) > frac_min
-
-            if nan_fraction_found:
-                print('    WARNING: found nan in fractions of a packet:', packet_fractions)
-                if self._log is not None:
-                    self._log['fraction_nan'][-1] += 1
-
-
-            # Check if none of segments is above the frac_min. If so, only use the shortest distant segment.
-            if seg_flag.sum()<1:
-                if verbose:
-                    print('[WARNING] All associated segment below threshold: packet')
-                    print('          Packet %d Charge %.3f' % (ip,dE[ip]), ['%.3f' % f for f in packet_fractions])
-                if not self._log is None:
-                    self._log['packet_badass'][-1] += 1            
-                it = np.argmin(seg_dist)
-                if verbose:
-                    print('[INFO] Registering the closest segment',packet_segments[it])
-                #print(ass_segments[ip])
-                #print(ass_fractions[ip])
-                #print(it)
-                #print(packet_fractions)
-                seg_idx = packet_segments[it]
-                seg = data.segments[seg_idx]
-                packet_edeps[it].dedx = seg['dEdx']
-                packet_edeps[it].e = dE[ip]
-                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
-                check_ana_sum += packet_edeps[it].e
-                continue
-
-
-            # Step 3: re-normalize the fraction among remaining segments and create EDeps
-            frac_norm = 1. / (np.abs(packet_fractions[seg_flag]).sum())
-            for it in range(packet_fractions.shape[0]):
-                if not seg_flag[it]: continue
-                seg_idx = packet_segments[it]
-                seg = data.segments[seg_idx]
-                packet_edeps[it].dedx = seg['dEdx']
-                packet_edeps[it].e = dE[ip] * abs(packet_fractions[it]) * frac_norm
-                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
-                if verbose:
-                    print('[INFO] Registered segment',seg_idx)
-                check_ana_sum += packet_edeps[it].e
-
-        if verbose:
-            print("--- filling edep %s seconds ---" % (time.time() - start_time)) 
-
-        if not self._log is None:
-
-            self._log['residual_q'][-1] = check_raw_sum - check_ana_sum
-
-            if self._log['packet_ctr'][-1]>0:
-                self._log['ass_frac'][-1] /= self._log['packet_ctr'][-1]
-
-            if self._log['packet_noass'][-1]:
-                value_bad, value_frac = self._log['packet_noass'][-1], self._log['packet_noass'][-1]/self._log['packet_total'][-1]*100.
-                print(f'    WARNING: {value_bad} packets ({value_frac} %) had no MC track association')
-
-            if self._log['fraction_nan'][-1]:
-                value_bad, value_frac = self._log['fraction_nan'][-1], self._log['fraction_nan'][-1]/self._log['packet_total'][-1]*100.
-                print(f'    WARNING: {value_bad} packets ({value_frac} %) had nan fractions associated')
-
-            if self._log['ass_frac'][-1]<0.9999:
-                print(f'    WARNING associated packet count fraction is {self._log["ass_frac"][-1]} (<1.0)')
-
-            #if self._log['bad_track_id'][-1]:
-            #    print(f'    WARNING: {self._log["bad_track_id"][-1]} invalid track IDs found in the association')
-
-        if abs(check_raw_sum - check_ana_sum)>0.1:
-            print('[WARNING] large disagreement in the sum packet values:')
-            print('    Raw sum:',check_raw_sum)
-            print('    Accounted sum:',check_ana_sum)
-        supera_event.unassociated_edeps = self._edeps_unassociated
         return supera_event
 
     def TrajectoryToParticle(self, trajectory):
