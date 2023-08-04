@@ -97,27 +97,19 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         return True
 
     def ConfigureFromFile(self,fname):
-        print('Config from file: fname {}'.format(fname))
         with open(fname,'r') as f:
-            print('File open')
             cfg=yaml.load(f.read(),Loader=Loader)
-            print('cfg:', cfg)
             #if not self.LoadPropertyConfigs(cfg):
             #    raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
-            print('ElectronEnergyThreshold')
             self._estimate_pt_time = cfg.get('EstimatePointTime',
                 self._estimate_pt_time)
-            print('EstimatePointTime')
             self._ass_distance_limit = cfg.get('AssDistanceLimit',
                 self._ass_distance_limit)
-            print('No')
             self._ass_charge_limit = cfg.get('AssChargeLimit',
                 self._ass_charge_limit)
-
-            print('cfg:', cfg)
 
         super().ConfigureFromFile(fname)
 

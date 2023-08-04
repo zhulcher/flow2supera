@@ -12,18 +12,12 @@ from larcv import larcv
 
 def get_flow2supera(config_key):
 
-    print('Getting...')
-
     driver = flow2supera.driver.SuperaDriver()
-    print('Driver')
     if os.path.isfile(config_key):
-        print('is file')
         driver.ConfigureFromFile(config_key)
     else:
-        print('is not file')
         driver.ConfigureFromFile(flow2supera.config.get_config(config_key))
     
-    print('Returning')
     return driver 
 
 def log_supera_integrity_check(data, driver, log, verbose=False):
