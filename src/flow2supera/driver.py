@@ -50,7 +50,9 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         # Expect only PropertyKeyword or (TileLayout,DetectorProperties). Not both.
         if cfg_dict.get('PropertyKeyword',None):
+            print('hi')
             if cfg_dict.get('TileLayout',None) or cfg_dict.get('DetectorProperties',None):
+                print('hi again')
                 print('PropertyKeyword provided:', cfg_dict['PropertyKeyword'])
                 print('But also founnd below:')
                 for keyword in ['TileLayout','DetectorProperties']:
@@ -60,7 +62,9 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 print('You cannot specify duplicated property infomration!')
                 return False
             else:
+                print('else')
                 try:
+                    print('try')
                     self._run_config, self._geom_dict = LarpixParser.util.detector_configuration(cfg_dict['PropertyKeyword'])
                 except ValueError:
                     print('Failed to load with PropertyKeyword', cfg_dict['PropertyKeyword'])
@@ -79,6 +83,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             self._geom_dict  = LarpixParser.util.load_geom_dict(cfg_dict['TileLayout'])
             self._run_config = LarpixParser.util.get_run_config(cfg_dict['DetectorProperties'])
 
+        print('self._geom_dict', self._geom_dict)
+        print('self._run_config', self._run_config)
         # Event separator default value needs to be set.
         # We repurpose "run_config" of EventParser to hold this attribute.
         self._run_config['event_separator'] = 'eventID'
@@ -87,22 +93,31 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         if run_config_mod:
             for key,val in run_config_mod.items():
                 self._run_config[key]=val
+        print('Returning property configs')
         return True
 
     def ConfigureFromFile(self,fname):
+        print('Config from file: fname {}'.format(fname))
         with open(fname,'r') as f:
+            print('File open')
             cfg=yaml.load(f.read(),Loader=Loader)
-            if not self.LoadPropertyConfigs(cfg):
-                raise ValueError('Failed to configure flow2supera!')
+            print('cfg:', cfg)
+            #if not self.LoadPropertyConfigs(cfg):
+            #    raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
+            print('ElectronEnergyThreshold')
             self._estimate_pt_time = cfg.get('EstimatePointTime',
                 self._estimate_pt_time)
+            print('EstimatePointTime')
             self._ass_distance_limit = cfg.get('AssDistanceLimit',
                 self._ass_distance_limit)
+            print('No')
             self._ass_charge_limit = cfg.get('AssChargeLimit',
                 self._ass_charge_limit)
+
+            print('cfg:', cfg)
 
         super().ConfigureFromFile(fname)
 

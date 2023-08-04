@@ -9,15 +9,23 @@ import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
+from memory_profiler import profile
 
+@profile
 def get_flow2supera(config_key):
 
+    print('Getting...')
+
     driver = flow2supera.driver.SuperaDriver()
+    print('Driver')
     if os.path.isfile(config_key):
+        print('is file')
         driver.ConfigureFromFile(config_key)
     else:
+        print('is not file')
         driver.ConfigureFromFile(flow2supera.config.get_config(config_key))
     
+    print('Returning')
     return driver 
 
 def log_supera_integrity_check(data, driver, log, verbose=False):
