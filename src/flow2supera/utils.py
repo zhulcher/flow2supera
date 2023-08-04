@@ -9,9 +9,7 @@ import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
-from memory_profiler import profile
 
-@profile
 def get_flow2supera(config_key):
 
     print('Getting...')
