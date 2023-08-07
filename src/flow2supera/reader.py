@@ -51,6 +51,7 @@ class FlowReader:
         backtracked_hits = []
         segments = []
         trajectories = []
+        event_trajectories = []
         t0s = []
 
         print('Reading input file...')
@@ -66,7 +67,7 @@ class FlowReader:
         packets_path = 'charge/packets'
         interactions_path = 'mc_truth/interactions/'
         segments_path = 'mc_truth/segments/'
-        trajectories_path = 'mc_truth/trajectories/'
+        trajectories_path = 'mc_truth/trajectories/data'
 
         #if type(input_files) == str:
         #    input_files = [input_files]
@@ -77,23 +78,18 @@ class FlowReader:
         # event IDs?
         #for f in input_files:
         flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
-        print('Got flow manager')
         with h5py.File(input_files, 'r') as fin:
             events = flow_manager[events_path]
-            print('Got events')
             events_data = events['data']
             #event_ids.append(events_data['id'])
             self._event_ids = events_data['id']
             self._event_t0s = flow_manager[events_path, t0s_path]
-            print('Got t0s')
             #self._hits_ref_region = fin[hit_ref_region_path][:]
             self._hits_ref_region = flow_manager[hit_ref_region_path]
-            print('Got ref_region')
             #calib_final_hits.append(flow_manager[events_path, 
             #                                     calib_final_hits_path])
             #self._hits = fin[calib_final_hits_path][:]
             self._hits = flow_manager[events_path, calib_final_hits_path]
-            print('Got hits')
             #t0s.append(flow_manager[events_path, t0s_path])
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
@@ -105,17 +101,18 @@ class FlowReader:
                                               calib_prompt_hits_path,
                                               packets_path,
                                               segments_path]
-                print('Got segments')
                 #trajectories.append(flow_manager[events_path,
-                self._trajectories = flow_manager[events_path,
-                                                  calib_final_hits_path,
-                                                  calib_prompt_hits_path,
-                                                  packets_path,
-                                                  segments_path,
-                                                  trajectories_path]
-                print('Got trajectories')
+                #self._trajectories = flow_manager[events_path,
+                #                                  calib_final_hits_path,
+                #                                  calib_prompt_hits_path,
+                #                                  packets_path,
+                #                                  segments_path,
+                #                                  trajectories_path]
+                # Trajectories need to be separated manually since we want all
+                # truth information, not just those mapped to reco
+                self._trajectories = flow_manager[trajectories_path]
+
                 self._interactions = flow_manager[interactions_path]
-                print('Got interactions')
                 
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
