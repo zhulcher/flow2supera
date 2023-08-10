@@ -65,6 +65,7 @@ class FlowReader:
         event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         calib_final_hits_path = 'charge/calib_final_hits/'
         calib_prompt_hits_path = 'charge/calib_prompt_hits/'
+        backtracked_hits_path = 'mc_truth/calib_final_hit_backtrack/data'
         packets_path = 'charge/packets'
         interactions_path = 'mc_truth/interactions/data'
         segments_path = 'mc_truth/segments/'
@@ -86,6 +87,7 @@ class FlowReader:
             self._event_t0s = flow_manager[events_path, t0s_path]
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[events_path, calib_final_hits_path]
+            self._backtracked_hits = fin[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
@@ -135,8 +137,12 @@ class FlowReader:
         # Use 'ts' for event timestamp
         result.t0 = self._event_t0s[result.event_id]['ts']
 
-        result.hit_indices = self._event_hit_indices[result.event_id]
-        result.hits = self._hits[result.event_id]
+        #result.hit_indices = self._event_hit_indices[result.event_id]
+        hit_start_index = self._event_hit_indices[result.event_id][0]
+        hit_stop_index  = self._event_hit_indices[result.event_id][1]
+        #result.hits = self._hits[result.event_id]
+        result.hits = self._hits[hit_start_index:hit_stop_index]
+        result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
         result.segments = self._segments[result.event_id]
         result.trajectories = self._trajectories[self._trajectories['event_id']==event_index]
         result.interactions = self._interactions[result.event_id]
