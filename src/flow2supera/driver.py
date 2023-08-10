@@ -136,26 +136,23 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
-        max_trackid = max(data.trajectories['trackID'].max(), data.segments['trackID'].max())
+        max_trackid = max(data.trajectories['traj_id'].max(), data.segments['segment_id'].max())
         self._trackid2idx.resize(int(max_trackid+1), supera.kINVALID_INDEX)
         for traj in data.trajectories:
-            # print("traj",traj)
             part_input = supera.ParticleInput()
 
             part_input.valid = True
             part_input.part  = self.TrajectoryToParticle(traj)
             part_input.part.id = supera_event.size()
-            #part_input.type  = self.GetG4CreationProcess(traj)
-            #supera_event.append(part_input)
             if self.GetLogger().verbose():
                 if verbose:
                     print('  TrackID',part_input.part.trackid,
                           'PDG',part_input.part.pdg,
                           'Energy',part_input.part.energy_init)
-            if traj['trackID'] < 0:
-                print('Negative track ID found',traj['trackID'])
+            if traj['traj_id'] < 0:
+                print('Negative track ID found',traj['traj_id'])
                 raise ValueError
-            self._trackid2idx[int(traj['trackID'])] = part_input.part.id
+            #self._trackid2idx[int(traj['track_id'])] = part_input.part.id
             supera_event.push_back(part_input)
             
         if verbose:
@@ -167,15 +164,18 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             traj = data.trajectories[i]
 
             parent=None            
-            if(part.part.parent_trackid < self._trackid2idx.size()):
-                parent_index = self._trackid2idx[part.part.parent_trackid]
-                if not parent_index == supera.kINVALID_INDEX:
-                    parent = supera_event[parent_index].part
-                    part.part.parent_pdg = parent.pdg
+            #if(part.part.parent_trackid < self._trackid2idx.size()):
+            if(part.part.parent_trackid >= len(data.trajectories)): continue
+            #parent_index = self._trackid2idx[part.part.parent_trackid]
+            parent_index = event_trajectories[part.part.parent_trackid]
+            if parent_index == supera.kINVALID_INDEX: continue
+
+            parent = supera_event[parent_index].part
+            part.part.parent_pdg = parent.pdg
                     
             self.SetProcessType(traj, part.part, parent)
 
-        # TODO I think this is now loop over hits and backtracked hits using ref_region
+        # TODO I think this should now loop over hits and backtracked hits using ref_region
         # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
         #    and store in pcloud
         #x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
@@ -222,7 +222,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             if verbose:
                 print('[INFO] Assessing packet',ip)
                 print('       Segments :', packet_segments)
-                print('       TrackIDs :', [data.segments[packet_segments[idx]]['trackID'] for idx in range(packet_segments.shape[0])])
+                print('       TrackIDs :', [data.segments[packet_segments[idx]]['track_id'] for idx in range(packet_segments.shape[0])])
                 print('       Fractions:', ['%.3f' % f for f in packet_fractions])
                 print('       Energy   : %.3f' % dE[ip])
                 print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
@@ -271,10 +271,9 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p = supera.Particle()
         # Larnd-sim stores a lot of these fields as numpy.uint32, 
         # but Supera/LArCV want a regular int, hence the type casting
-        # TODO Is there a cleaner way to handle this?
         p.id             = int(trajectory['event_id'])
-        p.interaction_id = trajectory['vertex_id']
-        p.trackid        = int(trajectory['trackID'])
+        p.interaction_id = int(trajectory['vertex_id'])
+        p.trackid        = int(trajectory['traj_id']) # TODO Is this rigth? What exactly is traj_id?
         p.pdg            = int(trajectory['pdg_id'])
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
