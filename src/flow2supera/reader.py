@@ -9,6 +9,7 @@ class InputEvent:
     hits = None
     calib_final_hits  = None
     trajectories = None
+    interactions = None
     t0 = -1
     segment_index_min = -1
     event_separator = ''
@@ -65,7 +66,7 @@ class FlowReader:
         calib_final_hits_path = 'charge/calib_final_hits/'
         calib_prompt_hits_path = 'charge/calib_prompt_hits/'
         packets_path = 'charge/packets'
-        interactions_path = 'mc_truth/interactions/'
+        interactions_path = 'mc_truth/interactions/data'
         segments_path = 'mc_truth/segments/'
         trajectories_path = 'mc_truth/trajectories/data'
 
@@ -145,13 +146,39 @@ class FlowReader:
         #result.event_separator = self._run_config['event_separator']
         
         result.event_id = self._event_ids[event_index]
-        result.t0       = self._event_t0s[result.event_id]
+
+        # t0s dtypes: ('id', 'ts', 'ts_err', 'type')
+        # Use 'ts' for event timestamp
+        result.t0 = self._event_t0s[result.event_id]['ts']
 
         result.hits_ref_region = self._hits_ref_region[result.event_id]
         result.hits = self._hits[result.event_id]
         result.segments = self._segments[result.event_id]
-        result.trajectories = self._trajectories[result.event_id]
+        result.trajectories = self._trajectories[self._trajectories['event_id']==event_index]
+        result.interactions = self._interactions[result.event_id]
+        #result.trajectories = self._trajectories[result.event_id]
         #result.mc_packets_assn = self._mc_packets_assn[mask]
         #result.segment_index_min = mask.nonzero()[0][0]
         
         return result  
+
+    def EventDump(self, input_event):
+        print('-----------EVENT DUMP-----------------')
+        print('Event ID {}'.format(input_event.event_id))
+        print('Event t0 {}'.format(input_event.t0))
+        print('hits ref region:', input_event.hits_ref_region)
+        print('hits shape:', input_event.hits.shape)
+        print('segments shape:', input_event.segments.shape)
+        print('trajectories shape:', input_event.trajectories.shape)
+        print('interactions shape:', input_event.interactions.shape)
+
+
+
+
+
+
+
+
+
+
+
