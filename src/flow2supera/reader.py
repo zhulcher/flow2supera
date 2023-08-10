@@ -148,7 +148,7 @@ class FlowReader:
         print('-----------EVENT DUMP-----------------')
         print('Event ID {}'.format(input_event.event_id))
         print('Event t0 {}'.format(input_event.t0))
-        print('hits ref region:', input_event.event_hit_indices)
+        print('Event hit indices (start, stop):', input_event.hit_indices)
         print('hits shape:', input_event.hits.shape)
         print('segments shape:', input_event.segments.shape)
         print('trajectories shape:', input_event.trajectories.shape)
