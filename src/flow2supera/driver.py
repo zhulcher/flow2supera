@@ -182,82 +182,39 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         start_time = time.time()
 
-        ass_segments = data.mc_packets_assn['track_ids']
-        ass_fractions = data.mc_packets_assn['fraction']
-        
         # Loop over packets and decide particle trajectory segments that are associated with it.
         # Also calculate how much fraction of the packet value should be associated to this particle.
-        check_raw_sum=0
-        check_ana_sum=0
-        for ip, packet in enumerate(data.packets):
-            if verbose:
-                print('*****************Packet', ip, '**********************')
 
-            # If packet_type !=0 continue
-            if packet['packet_type'] != 0: continue
+        # Flow files store up to 100 contributors per hit, but most of them are empty,
+        # hence the threshold
+        max_contributors = 100
+        hit_threshold = 0.0001
+        #hits = data.hits
+        backtracked_hits = data.backtracked_hits
+        for i_bt, backtracked_hit in enumerate(backtracked_hits):
+            # TODO Loop over only non-zero contributors
+            reco_hit = data.hits[i_bt]
+            for contrib in range(max_contributors):
+                if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
 
-            # Record this packet
-            raw_edep = supera.EDep()
-            raw_edep.x, raw_edep.y, raw_edep.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
-            raw_edep.e = dE[ip]
-            self._edeps_all.push_back(raw_edep)
-            check_raw_sum += dE[ip]
-
-            # Log the valid packet count
-            if not self._log is None:
-                self._log['packet_ctr'][-1]+=1
-
-            # We analyze and modify segments and fractions, so make a copy
-            packet_segments  = np.array(ass_segments[ip])
-            packet_fractions = np.array(ass_fractions[ip])
-            packet_edeps = [None] * len(packet_segments)
-
-            # Initialize seg_flag once 
-            if seg_flag is None:
-                seg_flag = np.zeros(shape=(packet_segments.shape[0]),dtype=bool)
-                seg_dist = np.zeros(shape=(packet_segments.shape[0]),dtype=float)
-            seg_flag[:] = True
-            seg_dist[:] = 1.e9
-
-            if verbose:
-                print('[INFO] Assessing packet',ip)
-                print('       Segments :', packet_segments)
-                print('       TrackIDs :', [data.segments[packet_segments[idx]]['track_id'] for idx in range(packet_segments.shape[0])])
-                print('       Fractions:', ['%.3f' % f for f in packet_fractions])
-                print('       Energy   : %.3f' % dE[ip])
-                print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
-                print('       Distance :', ['%.3f' % f for f in seg_dist])
-
-            # Post-Step1, check if there is any associated segments left.
-            # Post-Step1.A: If none left, then register to the set of unassociated segments.
-            if (seg_dist < self._ass_distance_limit).sum()<1:
-                if verbose:
-                    print('[WARNING] found a packet unassociated with any tracks')
-                    print('          Packet %d Charge %.3f' % (ip,dE[ip]))
+                # Record this packet
+                #raw_edep.x, raw_edep.y, raw_edep.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
+                #raw_edep.e = dE[ip]
+                #self._edeps_all.push_back(raw_edep)
+                #check_raw_sum += dE[ip]
                 edep = supera.EDep()
-                edep.x,edep.y,edep.z,edep.e = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm, dE[ip]
-                self._edeps_unassociated.push_back(edep)
-                if not self._log is None:
-                    self._log['packet_noass'][-1] += 1
-                check_ana_sum += edep.e
-                continue
+                edep.x = reco_hit['x']
+                edep.y = reco_hit['y']
+                edep.z = reco_hit['z']
+                edep.t = reco_hit['t_drift']
 
-            # After this point, >=1 association will be found. Log if needed
-            if not self._log is None:
-                self._log['ass_frac'][-1] += 1
-
-            # Post-Step1.B: If only one segment left, register to that packet.
-            if (seg_dist < self._ass_distance_limit).sum()==1:
-                if verbose:
-                    print('[INFO] Registering the only segment within distance limit',packet_segments[it])
-                it = np.argmin(seg_dist)
-                seg_idx = packet_segments[it]
-                seg = data.segments[seg_idx]
-                packet_edeps[it].dedx = seg['dEdx']
-                packet_edeps[it].e = dE[ip]
-                supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
-                check_ana_sum += packet_edeps[it].e
-                continue
+                #seg_idx = packet_segments[it]
+                segment_id = backtracked_hit['segment_id'][contrib]
+                segment = data.segments[segment_id]
+                edep.dedx = segment['dEdx']
+                edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
+                #supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
+                supera_event[i_bt].pcloud.push_back(edep)
 
         return supera_event
 
