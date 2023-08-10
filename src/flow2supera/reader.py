@@ -5,7 +5,7 @@ import numpy as np
 class InputEvent:
     event_id = -1
     segments = None
-    hits_ref_region = None
+    hit_indices = None
     hits = None
     calib_final_hits  = None
     trajectories = None
@@ -20,14 +20,14 @@ class FlowReader:
         self._input_files = input_files
         if not isinstance(input_files, str):
             raise TypeError('Input file must be a str type')
-        self._hits_ref_region = None
+        self._event_ids = None
+        self._event_t0s = None
+        self._event_hit_indices = None
         self._hits = None
         self._backtracked_hits = None
         self._segments = None
         self._trajectories = None
         #self._vertices = None
-        self._event_ids = None
-        self._event_t0s = None
         self._interactions = None
         #self._if_spill = False
         self._run_config = parser_run_config
@@ -47,7 +47,7 @@ class FlowReader:
     def ReadFile(self, input_files, verbose=False):
         event_ids = []
         calib_final_hits  = []
-        hit_ref_region = []
+        event_hit_indices = []
         hits = []
         backtracked_hits = []
         segments = []
@@ -60,9 +60,9 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
-        events_data_path = 'charge/events/data/'
-        hit_ref_region_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         t0s_path = '/combined/t0/'
+        events_data_path = 'charge/events/data/'
+        event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         calib_final_hits_path = 'charge/calib_final_hits/'
         calib_prompt_hits_path = 'charge/calib_prompt_hits/'
         packets_path = 'charge/packets'
@@ -82,16 +82,10 @@ class FlowReader:
         with h5py.File(input_files, 'r') as fin:
             events = flow_manager[events_path]
             events_data = events['data']
-            #event_ids.append(events_data['id'])
             self._event_ids = events_data['id']
             self._event_t0s = flow_manager[events_path, t0s_path]
-            #self._hits_ref_region = fin[hit_ref_region_path][:]
-            self._hits_ref_region = flow_manager[hit_ref_region_path]
-            #calib_final_hits.append(flow_manager[events_path, 
-            #                                     calib_final_hits_path])
-            #self._hits = fin[calib_final_hits_path][:]
+            self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[events_path, calib_final_hits_path]
-            #t0s.append(flow_manager[events_path, t0s_path])
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
@@ -102,17 +96,7 @@ class FlowReader:
                                               calib_prompt_hits_path,
                                               packets_path,
                                               segments_path]
-                #trajectories.append(flow_manager[events_path,
-                #self._trajectories = flow_manager[events_path,
-                #                                  calib_final_hits_path,
-                #                                  calib_prompt_hits_path,
-                #                                  packets_path,
-                #                                  segments_path,
-                #                                  trajectories_path]
-                # Trajectories need to be separated manually since we want all
-                # truth information, not just those mapped to reco
                 self._trajectories = flow_manager[trajectories_path]
-
                 self._interactions = flow_manager[interactions_path]
                 
         # Stack datasets so that there's a "file index" preceding the event index
@@ -151,13 +135,11 @@ class FlowReader:
         # Use 'ts' for event timestamp
         result.t0 = self._event_t0s[result.event_id]['ts']
 
-        result.hits_ref_region = self._hits_ref_region[result.event_id]
+        result.hit_indices = self._event_hit_indices[result.event_id]
         result.hits = self._hits[result.event_id]
         result.segments = self._segments[result.event_id]
         result.trajectories = self._trajectories[self._trajectories['event_id']==event_index]
         result.interactions = self._interactions[result.event_id]
-        #result.trajectories = self._trajectories[result.event_id]
-        #result.mc_packets_assn = self._mc_packets_assn[mask]
         #result.segment_index_min = mask.nonzero()[0][0]
         
         return result  
@@ -166,19 +148,9 @@ class FlowReader:
         print('-----------EVENT DUMP-----------------')
         print('Event ID {}'.format(input_event.event_id))
         print('Event t0 {}'.format(input_event.t0))
-        print('hits ref region:', input_event.hits_ref_region)
+        print('hits ref region:', input_event.event_hit_indices)
         print('hits shape:', input_event.hits.shape)
         print('segments shape:', input_event.segments.shape)
         print('trajectories shape:', input_event.trajectories.shape)
         print('interactions shape:', input_event.interactions.shape)
-
-
-
-
-
-
-
-
-
-
 
