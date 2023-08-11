@@ -7,6 +7,7 @@ class InputEvent:
     segments = None
     hit_indices = None
     hits = None
+    backtracked_hits = None
     calib_final_hits  = None
     trajectories = None
     interactions = None
@@ -87,7 +88,7 @@ class FlowReader:
             self._event_t0s = flow_manager[events_path, t0s_path]
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[events_path, calib_final_hits_path]
-            self._backtracked_hits = fin[backtracked_hits_path]
+            self._backtracked_hits = flow_manager[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
@@ -98,6 +99,8 @@ class FlowReader:
                                               calib_prompt_hits_path,
                                               packets_path,
                                               segments_path]
+                #self._segments = flow_manager[segments_path+'data']
+                print('len self._segments:', len(self._segments))
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
                 
@@ -137,14 +140,15 @@ class FlowReader:
         # Use 'ts' for event timestamp
         result.t0 = self._event_t0s[result.event_id]['ts']
 
-        #result.hit_indices = self._event_hit_indices[result.event_id]
+        result.hit_indices = self._event_hit_indices[result.event_id]
         hit_start_index = self._event_hit_indices[result.event_id][0]
         hit_stop_index  = self._event_hit_indices[result.event_id][1]
         #result.hits = self._hits[result.event_id]
         result.hits = self._hits[hit_start_index:hit_stop_index]
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
         result.segments = self._segments[result.event_id]
-        result.trajectories = self._trajectories[self._trajectories['event_id']==event_index]
+        #result.segments = self._segments[self._segments['event_id']==result.event_id]
+        result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
         result.interactions = self._interactions[result.event_id]
         #result.segment_index_min = mask.nonzero()[0][0]
         
@@ -156,7 +160,7 @@ class FlowReader:
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
         print('hits shape:', input_event.hits.shape)
-        print('segments shape:', input_event.segments.shape)
-        print('trajectories shape:', input_event.trajectories.shape)
-        print('interactions shape:', input_event.interactions.shape)
+        print('segments len:', len(input_event.segments.shape))
+        print('trajectories len:', len(input_event.trajectories.shape))
+        print('interactions len:', len(input_event.interactions.shape))
 
