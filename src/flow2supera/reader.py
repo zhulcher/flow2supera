@@ -87,20 +87,20 @@ class FlowReader:
             self._event_ids = events_data['id']
             self._event_t0s = flow_manager[events_path, t0s_path]
             self._event_hit_indices = flow_manager[event_hit_indices_path]
-            self._hits = flow_manager[events_path, calib_final_hits_path]
+            #self._hits = flow_manager[events_path, calib_final_hits_path]
+            self._hits = flow_manager[calib_final_hits_path+'data']
             self._backtracked_hits = flow_manager[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
                 # TODO Truth backtracking should be streamlined starting in MiniRun4
                 #segments.append(flow_manager[events_path,
-                self._segments = flow_manager[events_path,
-                                              calib_final_hits_path,
-                                              calib_prompt_hits_path,
-                                              packets_path,
-                                              segments_path]
-                #self._segments = flow_manager[segments_path+'data']
-                print('len self._segments:', len(self._segments))
+                #self._segments = flow_manager[events_path,
+                #                              calib_final_hits_path,
+                #                              calib_prompt_hits_path,
+                #                              packets_path,
+                #                              segments_path]
+                self._segments = flow_manager[segments_path+'data']
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
                 
@@ -146,10 +146,15 @@ class FlowReader:
         #result.hits = self._hits[result.event_id]
         result.hits = self._hits[hit_start_index:hit_stop_index]
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
-        result.segments = self._segments[result.event_id]
+        #result.segments = self._segments[result.event_id]
+        # Keep segments as-is and use segment_id in driver class to associate to hits
+        result.segments = self._segments
         #result.segments = self._segments[self._segments['event_id']==result.event_id]
-        result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
-        result.interactions = self._interactions[result.event_id]
+        # Keep trajectories as-is and use the segments' traj_id to get event trajectories in driver
+        #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
+        result.trajectories = self._trajectories
+        #result.interactions = self._interactions[result.event_id]
+        result.interactions = self._interactions
         #result.segment_index_min = mask.nonzero()[0][0]
         
         return result  
