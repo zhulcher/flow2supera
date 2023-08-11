@@ -126,18 +126,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         
         start_time = time.time()
 
-        # initialize the new event record
-        if not self._log is None:
-            for key in self.LOG_KEYS:
-                self._log[key].append(0)
-
         supera_event = supera.EventInput()
         supera_event.reserve(len(data.trajectories))
-        
+
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
-        #max_trackid = max(data.trajectories['traj_id'].max(), data.segments['segment_id'].max())
-        #self._trackid2idx.resize(int(max_trackid+1), supera.kINVALID_INDEX)
         for traj in data.trajectories:
             part_input = supera.ParticleInput()
 
@@ -175,34 +168,26 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     
             self.SetProcessType(traj, part.part, parent)
 
-        # TODO I think this should now loop over hits and backtracked hits using ref_region
-        # 3. Loop over "voxels" (aka packets), get EDep from xyz and charge information,
+        # 3. Loop over "voxels" (aka hits), get EDep from xyz and charge information,
         #    and store in pcloud
-        #x, y, z, dE = HitParser.hit_parser_energy(data.t0, data.packets, self._geom_dict, self._run_config, switch_xz=True)
-
-        start_time = time.time()
-
-        # Loop over packets and decide particle trajectory segments that are associated with it.
-        # Also calculate how much fraction of the packet value should be associated to this particle.
 
         # Flow files store up to 100 contributors per hit, but most of them are empty,
         # hence the threshold
+        # TODO Loop over only non-zero contributors
         max_contributors = 100
         hit_threshold = 0.0001
-        #hits = data.hits
         backtracked_hits = data.backtracked_hits
+        # TODO Calculate the length of this in advance and use reserve; appending is slow!
+        #event_trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
-            # TODO Loop over only non-zero contributors
+            reco_hit = data.hits[i_bt]
             for contrib in range(max_contributors):
                 if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
 
-                reco_hit = data.hits[i_bt][contrib]
+                #reco_hit = data.hits[i_bt][contrib]
 
-                # Record this packet
-                #raw_edep.x, raw_edep.y, raw_edep.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
-                #raw_edep.e = dE[ip]
-                #self._edeps_all.push_back(raw_edep)
-                #check_raw_sum += dE[ip]
+                # Store hit information in Supera's EDep class. Add EDeps to 
+                # pcloud (std::vector<Supera::EDep>) for labeling 
                 edep = supera.EDep()
                 print('reco hit type:', type(reco_hit))
                 print('reco hit shape:', reco_hit.shape)
@@ -214,11 +199,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 edep.z = reco_hit['z']
                 edep.t = reco_hit['t_drift']
 
-                #seg_idx = packet_segments[it]
                 segment_id = backtracked_hit['segment_id'][contrib]
                 print('segment id:', segment_id)
                 print('data.segments len:', len(data.segments))
                 segment = data.segments[segment_id]
+                trajectory_id = segment['traj_id']
+                #event_trajectory_ids.append(trajectory_id)
                 print('segment shape', segment.shape)
                 print('segment dyptes', segment.dtype.names)
                 print('segment dEdx', segment['dEdx'])
@@ -227,6 +213,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
                 #supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
                 supera_event[i_bt].pcloud.push_back(edep)
+
+        print('Driver processed hits in {:.2f} s'.format(time.time() - start_time))
+
+        start_time = time.time()
 
         return supera_event
 

@@ -90,6 +90,8 @@ class FlowReader:
             #self._hits = flow_manager[events_path, calib_final_hits_path]
             self._hits = flow_manager[calib_final_hits_path+'data']
             self._backtracked_hits = flow_manager[backtracked_hits_path]
+            print('READER self._backtracked_hits dtypes:', self._backtracked_hits.dtype.names)
+            print('READER self._backtracked_hits:\n', self._backtracked_hits)
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
@@ -120,6 +122,28 @@ class FlowReader:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
 
+    # To truth associations go as hits -> segments -> trajectories
+    def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
+        max_contributors = 100
+        hit_threshold = 0.0001
+        #backtracked_hits = self._backtracked_hits
+        # TODO Calculate the length of this in advance and use reserve; appending is slow!
+        truth_dict = {
+            'segment_ids': [],
+            'trajectory_ids': [],
+        }
+
+        for i_bt, backtracked_hit in enumerate(backtracked_hits):
+            for contrib in range(max_contributors):
+                if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
+                segment_id = backtracked_hit['segment_id'][contrib]
+                segment = segments[segment_id]
+                trajectory_id = segment['traj_id']
+                truth_dict['segment_ids'].append(segment_id)
+                truth_dict['trajectory_ids'].append(trajectory_id)
+
+        return truth_dict
+
     #def GetEntry(self, file_index, event_index):
     def GetEvent(self, event_index):
         
@@ -128,7 +152,6 @@ class FlowReader:
             print('Invalid read request (returning None)')
             return None
         
-        # Now return event info for the found index
         result = InputEvent()
 
         # TODO Is this necessary anymore?
@@ -148,11 +171,27 @@ class FlowReader:
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
         #result.segments = self._segments[result.event_id]
         # Keep segments as-is and use segment_id in driver class to associate to hits
-        result.segments = self._segments
+        truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
+                                                    self._segments, 
+                                                    self._trajectories)
+        event_trajectory_ids = truth_ids_dict['trajectory_ids']
+        trajectories_array = np.array(self._trajectories)
+
+        # Filter the array based on the 'traj_id' values
+        result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
+        print('TEST', result.trajectories['traj_id'])
+
+        event_segment_ids = truth_ids_dict['segment_ids']
+        segments_array = np.array(self._segments)
+
+        # Filter the array based on the 'traj_id' values
+        result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
+
+        #result.segments = self._segments
         #result.segments = self._segments[self._segments['event_id']==result.event_id]
         # Keep trajectories as-is and use the segments' traj_id to get event trajectories in driver
         #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
-        result.trajectories = self._trajectories
+        #result.trajectories = self._trajectories
         #result.interactions = self._interactions[result.event_id]
         result.interactions = self._interactions
         #result.segment_index_min = mask.nonzero()[0][0]
@@ -164,8 +203,14 @@ class FlowReader:
         print('Event ID {}'.format(input_event.event_id))
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
+        print('Backtracked hits len:', len(input_event.backtracked_hits))
+        print('Backtracked hits shape:', input_event.backtracked_hits.shape)
+        print('Backtracked hits type:', type(input_event.backtracked_hits.shape))
+        #print('Backtracked hits:', input_event.backtracked_hits)
         print('hits shape:', input_event.hits.shape)
-        print('segments len:', len(input_event.segments.shape))
-        print('trajectories len:', len(input_event.trajectories.shape))
-        print('interactions len:', len(input_event.interactions.shape))
+        print('segments in this event:', len(input_event.segments))
+        print('trajectories in this event:', len(input_event.trajectories))
+        #print('segments:', input_event.segments)
+        #print('trajectories:', input_event.trajectories)
+        print('interactions in this event:', len(input_event.interactions))
 
