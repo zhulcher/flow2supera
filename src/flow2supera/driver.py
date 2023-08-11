@@ -136,8 +136,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
-        max_trackid = max(data.trajectories['traj_id'].max(), data.segments['segment_id'].max())
-        self._trackid2idx.resize(int(max_trackid+1), supera.kINVALID_INDEX)
+        #max_trackid = max(data.trajectories['traj_id'].max(), data.segments['segment_id'].max())
+        #self._trackid2idx.resize(int(max_trackid+1), supera.kINVALID_INDEX)
         for traj in data.trajectories:
             part_input = supera.ParticleInput()
 
@@ -193,9 +193,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         backtracked_hits = data.backtracked_hits
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             # TODO Loop over only non-zero contributors
-            reco_hit = data.hits[i_bt]
             for contrib in range(max_contributors):
                 if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
+
+                reco_hit = data.hits[i_bt][contrib]
 
                 # Record this packet
                 #raw_edep.x, raw_edep.y, raw_edep.z = x[ip]*self._mm2cm, y[ip]*self._mm2cm, z[ip]*self._mm2cm
@@ -203,6 +204,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 #self._edeps_all.push_back(raw_edep)
                 #check_raw_sum += dE[ip]
                 edep = supera.EDep()
+                print('reco hit type:', type(reco_hit))
+                print('reco hit shape:', reco_hit.shape)
+                print('reco hit dtypes:', reco_hit.dtype.names)
+                print('reco hit x:', reco_hit['x'])
+                print('reco hit:', reco_hit)
                 edep.x = reco_hit['x']
                 edep.y = reco_hit['y']
                 edep.z = reco_hit['z']
@@ -210,7 +216,13 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
                 #seg_idx = packet_segments[it]
                 segment_id = backtracked_hit['segment_id'][contrib]
+                print('segment id:', segment_id)
+                print('data.segments len:', len(data.segments))
                 segment = data.segments[segment_id]
+                print('segment shape', segment.shape)
+                print('segment dyptes', segment.dtype.names)
+                print('segment dEdx', segment['dEdx'])
+                print('segment', segment)
                 edep.dedx = segment['dEdx']
                 edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
                 #supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
