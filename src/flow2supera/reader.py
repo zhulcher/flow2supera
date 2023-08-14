@@ -139,6 +139,7 @@ class FlowReader:
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 trajectory_id = segment['traj_id']
+                trajectory = trajectories[trajectory_id]
                 truth_dict['segment_ids'].append(segment_id)
                 truth_dict['trajectory_ids'].append(trajectory_id)
 
@@ -176,18 +177,13 @@ class FlowReader:
                                                     self._trajectories)
         event_trajectory_ids = truth_ids_dict['trajectory_ids']
         trajectories_array = np.array(self._trajectories)
-
-        # Filter the array based on the 'traj_id' values
         result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
-        print('TEST', result.trajectories['traj_id'])
 
-        event_segment_ids = truth_ids_dict['segment_ids']
-        segments_array = np.array(self._segments)
+        #event_segment_ids = truth_ids_dict['segment_ids']
+        #segments_array = np.array(self._segments)
+        #result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
-        # Filter the array based on the 'traj_id' values
-        result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
-
-        #result.segments = self._segments
+        result.segments = self._segments
         #result.segments = self._segments[self._segments['event_id']==result.event_id]
         # Keep trajectories as-is and use the segments' traj_id to get event trajectories in driver
         #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
@@ -204,12 +200,10 @@ class FlowReader:
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
         print('Backtracked hits len:', len(input_event.backtracked_hits))
-        print('Backtracked hits shape:', input_event.backtracked_hits.shape)
-        print('Backtracked hits type:', type(input_event.backtracked_hits.shape))
-        #print('Backtracked hits:', input_event.backtracked_hits)
         print('hits shape:', input_event.hits.shape)
         print('segments in this event:', len(input_event.segments))
         print('trajectories in this event:', len(input_event.trajectories))
+        #print('trajectories:', input_event.trajectories)
         #print('segments:', input_event.segments)
         #print('trajectories:', input_event.trajectories)
         print('interactions in this event:', len(input_event.interactions))
