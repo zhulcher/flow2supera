@@ -23,16 +23,16 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         super().__init__()
         self._geom_dict  = None
         self._run_config = None
-        self._trackid2idx = std.vector('supera::Index_t')()
+        self._trajectory_id_to_index = std.vector('supera::Index_t')()
         self._allowed_detectors = std.vector('std::string')()
         self._edeps_unassociated = std.vector('supera::EDep')()
         self._edeps_all = std.vector('supera::EDep')()
-        self._ass_distance_limit=0.4434*4.5
-        self._ass_charge_limit=0.05
-        self._log=None
-        self._electron_energy_threshold=0
-        self._estimate_pt_time=True
-        self._ignore_bad_association=True
+        self._ass_distance_limit = 0.4434*4.5
+        self._ass_charge_limit = 0.05
+        self._log = None
+        self._electron_energy_threshold = 0
+        self._estimate_pt_time = True
+        self._ignore_bad_association = True
         print("Initialized SuperaDriver class")
 
     def parser_run_config(self):
@@ -114,12 +114,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         super().ConfigureFromFile(fname)
 
     def ConfigureFromText(self,txt):
-        cfg=yaml.load(txt,Loader=Loader)
+        cfg=yaml.load(txt, Loader=Loader)
         if not self.LoadPropertyConfigs(cfg):
             raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
-                )
+            )
         super().ConfigureFromText(txt)
 
     def ReadEvent(self, data, verbose=False):
@@ -131,6 +131,19 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         # 1. Loop over trajectories, create one supera::ParticleInput for each
         #    store particle inputs in list to fill parent information later
+        #max_trajectory_id = max(data.trajectories['traj_id'].max(), data.segments['traj_id'].max())
+
+        # traj_id is globally unique, but local_traj_id always starts from 0 in a given event
+        # TODO How does traj_id vs. local_traj_id affect parent information filling?
+        #max_trajectory_id = data.trajectories['local_traj_id'].max()
+        max_trajectory_id = data.trajectories['traj_id'].max()
+        if verbose: print('Max trajectory ID:', max_trajectory_id)
+
+        # When we start constructing Supera::EDeps, we'll need a map from the local 
+        # trajectory ID to the index within supera_event in order to correctly associate
+        # EDeps to the right pcloud. 
+        # TODO This will get enormous for large trajectory IDs. How should we handle this?
+        self._trajectory_id_to_index.resize(int(max_trajectory_id + 1), supera.kINVALID_INDEX)
         for traj in data.trajectories:
             part_input = supera.ParticleInput()
 
@@ -145,8 +158,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             if traj['traj_id'] < 0:
                 print('Negative track ID found',traj['traj_id'])
                 raise ValueError
-            #self._trackid2idx[int(traj['track_id'])] = part_input.part.id
+            #self._trajectory_id_to_index[int(traj['local_traj_id'])] = part_input.part.id
+            self._trajectory_id_to_index[int(traj['traj_id'])] = part_input.part.id
             supera_event.push_back(part_input)
+
+        print('Trajectory ID to Index map len:', len(self._trajectory_id_to_index))
+        print('Trajectory ID to Index map:', self._trajectory_id_to_index)
             
         if verbose:
             print("--- trajectory filling %s seconds ---" % (time.time() - start_time)) 
@@ -157,10 +174,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             traj = data.trajectories[i]
 
             parent=None            
-            #if(part.part.parent_trackid < self._trackid2idx.size()):
-            if(part.part.parent_trackid >= len(data.trajectories)): continue
-            #parent_index = self._trackid2idx[part.part.parent_trackid]
-            parent_index = event_trajectories[part.part.parent_trackid]
+            if (part.part.parent_trackid >= self._trajectory_id_to_index.size()): continue
+            #if(part.part.parent_trackid >= len(data.trajectories)): continue
+            parent_index = self._trajectory_id_to_index[part.part.parent_trackid]
+            #parent_index = event_trajectories[part.part.parent_trackid]
             if parent_index == supera.kINVALID_INDEX: continue
 
             parent = supera_event[parent_index].part
@@ -180,6 +197,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         # TODO Calculate the length of this in advance and use reserve; appending is slow!
         #event_trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
+            print('------------------i_bt', i_bt, '----------------------')
             reco_hit = data.hits[i_bt]
             for contrib in range(max_contributors):
                 if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
@@ -189,32 +207,27 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 # Store hit information in Supera's EDep class. Add EDeps to 
                 # pcloud (std::vector<Supera::EDep>) for labeling 
                 edep = supera.EDep()
-                print('reco hit type:', type(reco_hit))
-                print('reco hit shape:', reco_hit.shape)
-                print('reco hit dtypes:', reco_hit.dtype.names)
-                print('reco hit x:', reco_hit['x'])
-                print('reco hit:', reco_hit)
                 edep.x = reco_hit['x']
                 edep.y = reco_hit['y']
                 edep.z = reco_hit['z']
                 edep.t = reco_hit['t_drift']
 
                 segment_id = backtracked_hit['segment_id'][contrib]
-                print('segment id:', segment_id)
-                print('data.segments len:', len(data.segments))
                 segment = data.segments[segment_id]
-                trajectory_id = segment['traj_id']
+                trajectory_id = int(segment['traj_id'])
+                print('Trajectory ID:', trajectory_id)
                 #event_trajectory_ids.append(trajectory_id)
-                print('segment shape', segment.shape)
-                print('segment dyptes', segment.dtype.names)
-                print('segment dEdx', segment['dEdx'])
-                print('segment', segment)
                 edep.dedx = segment['dEdx']
                 edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
                 #supera_event[self._trackid2idx[int(seg['trackID'])]].pcloud.push_back(packet_edeps[it])
-                supera_event[i_bt].pcloud.push_back(edep)
+                supera_event_id = self._trajectory_id_to_index[trajectory_id]
+                if supera_event_id == supera.kINVALID_INDEX:
+                    raise ValueError('Invalid EventInput index')
+                print('Supera event ID:', supera_event_id)
+                supera_event[supera_event_id].pcloud.push_back(edep)
 
-        print('Driver processed hits in {:.2f} s'.format(time.time() - start_time))
+        if verbose:
+            print('Driver processed hits in {:.2f} s'.format(time.time() - start_time))
 
         start_time = time.time()
 
