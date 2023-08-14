@@ -111,6 +111,8 @@ def run_supera(out_file='larcv.root',
         
     for entry in range(len(reader)):
 
+        print('***************ENTRY', entry, '******************')
+
         if num_skip and entry < num_skip:
             continue
 
