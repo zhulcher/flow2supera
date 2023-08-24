@@ -17,9 +17,12 @@ BBoxAlgorithm: BBoxInteraction
 BBoxConfig:
     LogLevel:   WARNING
     Seed:       -1
-    BBoxSize:   [141.888,127.6992,141.888]
-    BBoxTop:    [70.944,105.8496,70.944]
-    BBoxBottom: [-70.944,-21.8496,-70.944]
+    #BBoxSize:   [141.888,127.6992,141.888]
+    #BBoxTop:    [70.944,105.8496,70.944]
+    #BBoxBottom: [-70.944,-21.8496,-70.944]
+    BBoxSize:   [129.0,  127.0, 131.0]
+    BBoxTop:    [64.5,  -203.0, 1365.5]
+    BBoxBottom: [-64.5, -330.0, 1234.5]
     VoxelSize:  [0.4434,0.4434,0.4434]
     #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
     #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]
