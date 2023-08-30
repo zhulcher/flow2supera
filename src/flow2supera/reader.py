@@ -90,8 +90,7 @@ class FlowReader:
             #self._hits = flow_manager[events_path, calib_final_hits_path]
             self._hits = flow_manager[calib_final_hits_path+'data']
             self._backtracked_hits = flow_manager[backtracked_hits_path]
-            print('READER self._backtracked_hits dtypes:', self._backtracked_hits.dtype.names)
-            print('READER self._backtracked_hits:\n', self._backtracked_hits)
+            #self._backtracked_hits = fin[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #mc_packets_assn.append(fin['mc_packets_assn'][:])
@@ -105,6 +104,8 @@ class FlowReader:
                 self._segments = flow_manager[segments_path+'data']
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
+
+        print('woo')
                 
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
@@ -133,15 +134,25 @@ class FlowReader:
             'trajectory_ids': [],
         }
 
+        segment_ids = []
+        trajectory_ids = []
+
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             for contrib in range(max_contributors):
                 if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
+                segment_ids.append(segment_id)
                 trajectory_id = segment['traj_id']
                 trajectory = trajectories[trajectory_id]
-                truth_dict['segment_ids'].append(segment_id)
-                truth_dict['trajectory_ids'].append(trajectory_id)
+                trajectory_parent_id = trajectory['parent_id']
+                trajectory_ids.append(trajectory_id)
+                trajectory_ids.append(trajectory_parent_id)
+                #truth_dict['segment_ids'].append(segment_id)
+                #truth_dict['trajectory_ids'].append(trajectory_id)
+
+        truth_dict['segment_ids'] = segment_ids
+        truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 
         return truth_dict
 
@@ -155,9 +166,6 @@ class FlowReader:
         
         result = InputEvent()
 
-        # TODO Is this necessary anymore?
-        #result.event_separator = self._run_config['event_separator']
-        
         result.event_id = self._event_ids[event_index]
 
         # t0s dtypes: ('id', 'ts', 'ts_err', 'type')
@@ -172,18 +180,21 @@ class FlowReader:
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
         #result.segments = self._segments[result.event_id]
         # Keep segments as-is and use segment_id in driver class to associate to hits
+        ######################################################################
         truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
                                                     self._segments, 
                                                     self._trajectories)
         event_trajectory_ids = truth_ids_dict['trajectory_ids']
         trajectories_array = np.array(self._trajectories)
         result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
+        ####################################################################
+        #result.trajectories = self._trajectories
 
-        #event_segment_ids = truth_ids_dict['segment_ids']
-        #segments_array = np.array(self._segments)
-        #result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
+        event_segment_ids = truth_ids_dict['segment_ids']
+        segments_array = np.array(self._segments)
+        result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
-        result.segments = self._segments
+        #result.segments = self._segments
         #result.segments = self._segments[self._segments['event_id']==result.event_id]
         # Keep trajectories as-is and use the segments' traj_id to get event trajectories in driver
         #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
