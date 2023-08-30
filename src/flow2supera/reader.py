@@ -93,9 +93,6 @@ class FlowReader:
             #self._backtracked_hits = fin[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
-                #mc_packets_assn.append(fin['mc_packets_assn'][:])
-                # TODO Truth backtracking should be streamlined starting in MiniRun4
-                #segments.append(flow_manager[events_path,
                 #self._segments = flow_manager[events_path,
                 #                              calib_final_hits_path,
                 #                              calib_prompt_hits_path,
@@ -107,6 +104,7 @@ class FlowReader:
 
         print('woo')
                 
+        # This next bit is only necessary if reading multiple files
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
         #self._event_ids = np.concatenate(event_ids)
@@ -116,15 +114,17 @@ class FlowReader:
         #self._segments = np.stack(segments)
         #self._trajectories = np.stack(trajectories)
 
-        print('len event_ids:', len(self._event_ids))
-        print('len Reader:', len(self))
-
         if not self._is_sim:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
 
     # To truth associations go as hits -> segments -> trajectories
     def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
+        '''
+        The Driver class needs to know the number of event trajectories in advance.
+        This function uses the backtracked hits dataset to map hits->segments->trajectories
+        and fills segment and trajectory IDs corresponding to hits. 
+        '''
         max_contributors = 100
         hit_threshold = 0.0001
         #backtracked_hits = self._backtracked_hits
@@ -152,11 +152,11 @@ class FlowReader:
                 #truth_dict['trajectory_ids'].append(trajectory_id)
 
         truth_dict['segment_ids'] = segment_ids
+        # Trajectory IDs should increment in order
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 
         return truth_dict
 
-    #def GetEntry(self, file_index, event_index):
     def GetEvent(self, event_index):
         
         if event_index >= len(self._event_ids):
@@ -178,18 +178,16 @@ class FlowReader:
         #result.hits = self._hits[result.event_id]
         result.hits = self._hits[hit_start_index:hit_stop_index]
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
-        #result.segments = self._segments[result.event_id]
-        # Keep segments as-is and use segment_id in driver class to associate to hits
-        ######################################################################
+
         truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
                                                     self._segments, 
                                                     self._trajectories)
+        #result.trajectories = self._trajectories
         event_trajectory_ids = truth_ids_dict['trajectory_ids']
         trajectories_array = np.array(self._trajectories)
         result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
-        ####################################################################
-        #result.trajectories = self._trajectories
 
+        #result.segments = self._segments[result.event_id]
         event_segment_ids = truth_ids_dict['segment_ids']
         segments_array = np.array(self._segments)
         result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
@@ -200,8 +198,8 @@ class FlowReader:
         #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
         #result.trajectories = self._trajectories
         #result.interactions = self._interactions[result.event_id]
-        result.interactions = self._interactions
         #result.segment_index_min = mask.nonzero()[0][0]
+        result.interactions = self._interactions
         
         return result  
 
