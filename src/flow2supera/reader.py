@@ -125,7 +125,7 @@ class FlowReader:
         and fills segment and trajectory IDs corresponding to hits. 
         '''
         max_contributors = 100
-        hit_threshold = 0.0001
+        #hit_threshold = 0.0001
         #backtracked_hits = self._backtracked_hits
         # TODO Calculate the length of this in advance and use reserve; appending is slow!
         truth_dict = {
@@ -137,7 +137,10 @@ class FlowReader:
         trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             for contrib in range(max_contributors):
-                if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
+                if abs(backtracked_hit['fraction'][contrib]) == 0: continue
+                #from larnd2supera, 2023-09-14 YC: 
+                #I think frac_min should be allowed to be below 0 for the sake of induced current. 
+                #SK: So, only skipping 0 
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 segment_ids.append(segment_id)

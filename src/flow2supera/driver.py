@@ -206,10 +206,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             reco_hit = data.hits[i_bt]
             for contrib in range(max_contributors):
-                if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
-
-                # Store hit information in Supera's EDep class. Add EDeps to 
-                # pcloud (std::vector<Supera::EDep>) for labeling 
+                if abs(backtracked_hit['fraction'][contrib]) == 0: continue
+                #from larnd2supera, 2023-09-14 YC: 
+                #I think frac_min should be allowed to be below 0 for the sake of induced current. 
+                #SK: So, only skipping 0 
                 edep = supera.EDep()
                 edep.x = reco_hit['x']
                 edep.y = reco_hit['y']
