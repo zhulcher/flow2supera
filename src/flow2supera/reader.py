@@ -102,7 +102,6 @@ class FlowReader:
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
 
-        print('woo')
                 
         # This next bit is only necessary if reading multiple files
         # Stack datasets so that there's a "file index" preceding the event index
@@ -136,7 +135,6 @@ class FlowReader:
 
         segment_ids = []
         trajectory_ids = []
-
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             for contrib in range(max_contributors):
                 if abs(backtracked_hit['fraction'][contrib]) < hit_threshold: continue
