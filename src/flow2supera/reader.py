@@ -28,9 +28,7 @@ class FlowReader:
         self._backtracked_hits = None
         self._segments = None
         self._trajectories = None
-        #self._vertices = None
         self._interactions = None
-        #self._if_spill = False
         self._run_config = parser_run_config
         self._is_sim = False
 
@@ -72,9 +70,6 @@ class FlowReader:
         segments_path = 'mc_truth/segments/'
         trajectories_path = 'mc_truth/trajectories/data'
 
-        #if type(input_files) == str:
-        #    input_files = [input_files]
-        
         self._is_sim = False 
         # TODO Currently only reading one input file at a time. Is it 
         # necessary to read multiple? If so, how to handle non-unique
@@ -87,10 +82,8 @@ class FlowReader:
             self._event_ids = events_data['id']
             self._event_t0s = flow_manager[events_path, t0s_path]
             self._event_hit_indices = flow_manager[event_hit_indices_path]
-            #self._hits = flow_manager[events_path, calib_final_hits_path]
             self._hits = flow_manager[calib_final_hits_path+'data']
             self._backtracked_hits = flow_manager[backtracked_hits_path]
-            #self._backtracked_hits = fin[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #self._segments = flow_manager[events_path,
@@ -149,11 +142,9 @@ class FlowReader:
                 trajectory_parent_id = trajectory['parent_id']
                 trajectory_ids.append(trajectory_id)
                 trajectory_ids.append(trajectory_parent_id)
-                #truth_dict['segment_ids'].append(segment_id)
-                #truth_dict['trajectory_ids'].append(trajectory_id)
+
 
         truth_dict['segment_ids'] = segment_ids
-        # Trajectory IDs should increment in order
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 
         return truth_dict
@@ -169,37 +160,27 @@ class FlowReader:
 
         result.event_id = self._event_ids[event_index]
 
-        # t0s dtypes: ('id', 'ts', 'ts_err', 'type')
-        # Use 'ts' for event timestamp
+
         result.t0 = self._event_t0s[result.event_id]['ts']
 
         result.hit_indices = self._event_hit_indices[result.event_id]
         hit_start_index = self._event_hit_indices[result.event_id][0]
         hit_stop_index  = self._event_hit_indices[result.event_id][1]
-        #result.hits = self._hits[result.event_id]
         result.hits = self._hits[hit_start_index:hit_stop_index]
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
 
         truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
                                                     self._segments, 
                                                     self._trajectories)
-        #result.trajectories = self._trajectories
         event_trajectory_ids = truth_ids_dict['trajectory_ids']
         trajectories_array = np.array(self._trajectories)
         result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
 
-        #result.segments = self._segments[result.event_id]
         event_segment_ids = truth_ids_dict['segment_ids']
         segments_array = np.array(self._segments)
         result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
-        #result.segments = self._segments
-        #result.segments = self._segments[self._segments['event_id']==result.event_id]
-        # Keep trajectories as-is and use the segments' traj_id to get event trajectories in driver
-        #result.trajectories = self._trajectories[self._trajectories['event_id']==result.event_id]
-        #result.trajectories = self._trajectories
-        #result.interactions = self._interactions[result.event_id]
-        #result.segment_index_min = mask.nonzero()[0][0]
+
         result.interactions = self._interactions
         
         return result  
@@ -213,8 +194,5 @@ class FlowReader:
         print('hits shape:', input_event.hits.shape)
         print('segments in this event:', len(input_event.segments))
         print('trajectories in this event:', len(input_event.trajectories))
-        #print('trajectories:', input_event.trajectories)
-        #print('segments:', input_event.segments)
-        #print('trajectories:', input_event.trajectories)
         print('interactions in this event:', len(input_event.interactions))
 

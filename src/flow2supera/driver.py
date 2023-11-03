@@ -82,9 +82,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         print('self._geom_dict', self._geom_dict)
         print('self._run_config', self._run_config)
-        # Event separator default value needs to be set.
-        # We repurpose "run_config" of EventParser to hold this attribute.
-        self._run_config['event_separator'] = 'eventID'
         # Apply run config modification if requested
         run_config_mod = cfg_dict.get('ParserRunConfig',None)
         if run_config_mod:
@@ -96,8 +93,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
     def ConfigureFromFile(self,fname):
         with open(fname,'r') as f:
             cfg=yaml.load(f.read(),Loader=Loader)
-            #if not self.LoadPropertyConfigs(cfg):
-            #    raise ValueError('Failed to configure flow2supera!')
             self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
                 self._electron_energy_threshold
                 )
@@ -138,12 +133,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         #    store particle inputs in list to fill parent information later
         #max_trajectory_id = max(data.trajectories['traj_id'].max(), data.segments['traj_id'].max())
 
-        # traj_id is globally unique, but traj_id always starts from 0 in a given event
-        # TODO How does traj_id vs. traj_id affect parent information filling?
+        #Note: local_traj_id is not unique for the file due to merging of flow files, so use 'local_traj_id'
         #max_trajectory_id = data.trajectories['traj_id'].max()
         max_trajectory_id = data.trajectories['traj_id'].max()
         max_segment_id = data.segments['traj_id'].max()
-       # print('Max traj ID, segment ID: {}, {}'.format(max_trajectory_id, max_segment_id))
         if verbose: print('Max trajectory ID:', max_trajectory_id)
 
         # When we start constructing Supera::EDeps, we'll need a map from the local 
@@ -165,7 +158,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             if traj['traj_id'] < 0:
                 print('Negative track ID found',traj['traj_id'])
                 raise ValueError
-            #self._trajectory_id_to_index[int(traj['traj_id'])] = part_input.part.id
             self._trajectory_id_to_index[int(traj['traj_id'])] = part_input.part.id
             supera_event.push_back(part_input)
 
@@ -191,12 +183,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     
             self.SetProcessType(traj, part.part, parent)
 
-        # 3. Loop over "voxels" (aka hits), get EDep from xyz and charge information,
-        #    and store in pcloud
-
-        # Flow files store up to 100 contributors per hit, but most of them are empty,
-        # hence the threshold
-        # TODO Loop over only non-zero contributors
         max_contributors = 100
         hit_threshold = 0.0001
         # TODO Conversion necessary? No?
@@ -251,9 +237,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
-        # TODO Verify this new thing works
         p.energy_init = trajectory['E_start']
-        #p.energy_init = np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
+        #This is equivalent to np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
         #                        pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
         # TODO Is this correct? Shouldn't the vertex be the interaction vertex?
         # And this should be p.start_pt or something?
@@ -357,14 +342,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     raise ValueError
                     
             elif g4type_main == TG4TrajectoryPoint.G4ProcessType.kProcessDecay:
-                #print("    WARNING: DECAY ")
-                #print("      PDG",pdg_code,
-                #      "TrackId",edepsim_part['trackID'],
-                #      "Kinetic Energy",ke,
-                #      "Parent PDG",supera_part.parent_pdg ,
-                #      "Parent TrackId",edepsim_part['parentID'],
-                #      "G4ProcessType",g4type_main ,
-                #      "SubProcessType",g4type_sub)
                 supera_part.type = supera.kDecay
 
             elif g4type_main == TG4TrajectoryPoint.G4ProcessType.kProcessHadronic and g4type_sub == 151 and dr<0.0001:
