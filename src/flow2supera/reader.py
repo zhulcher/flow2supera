@@ -28,9 +28,7 @@ class FlowReader:
         self._backtracked_hits = None
         self._segments = None
         self._trajectories = None
-        #self._vertices = None
         self._interactions = None
-        #self._if_spill = False
         self._run_config = parser_run_config
         self._is_sim = False
 
@@ -87,10 +85,8 @@ class FlowReader:
             self._event_ids = events_data['id']
             self._event_t0s = flow_manager[events_path, t0s_path]
             self._event_hit_indices = flow_manager[event_hit_indices_path]
-            #self._hits = flow_manager[events_path, calib_final_hits_path]
             self._hits = flow_manager[calib_final_hits_path+'data']
             self._backtracked_hits = flow_manager[backtracked_hits_path]
-            #self._backtracked_hits = fin[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #self._segments = flow_manager[events_path,
@@ -102,8 +98,6 @@ class FlowReader:
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
 
-        print('woo')
-                
         # This next bit is only necessary if reading multiple files
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
@@ -147,9 +141,9 @@ class FlowReader:
                 trajectory = trajectories[trajectory_id]
                 trajectory_parent_id = trajectory['parent_id']
                 trajectory_ids.append(trajectory_id)
+                # Some trajectories' parents don't appear in the main trajectories
+                # list, but need to be seen by the driver. Add them here explicitly.
                 trajectory_ids.append(trajectory_parent_id)
-                #truth_dict['segment_ids'].append(segment_id)
-                #truth_dict['trajectory_ids'].append(trajectory_id)
 
         truth_dict['segment_ids'] = segment_ids
         # Trajectory IDs should increment in order
@@ -175,7 +169,6 @@ class FlowReader:
         result.hit_indices = self._event_hit_indices[result.event_id]
         hit_start_index = self._event_hit_indices[result.event_id][0]
         hit_stop_index  = self._event_hit_indices[result.event_id][1]
-        #result.hits = self._hits[result.event_id]
         result.hits = self._hits[hit_start_index:hit_stop_index]
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
 
