@@ -1,34 +1,37 @@
-import h5py as h5
+import h5py 
 import h5flow
 import numpy as np
-#from LarpixParser import event_parser as EventParser
-#from LarpixParser.util import detector_configuration
 
 class InputEvent:
     event_id = -1
-    mc_packets_assn = None
     segments = None
-    packets  = None
+    hit_indices = None
+    hits = None
+    backtracked_hits = None
+    calib_final_hits  = None
     trajectories = None
+    interactions = None
     t0 = -1
     segment_index_min = -1
     event_separator = ''
 
 class FlowReader:
     
-    def __init__(self,parser_run_config, input_files=None):
-        self._mc_packets_assn = None
-        self._packets = None
-        self._segments = None
-        self._trajectories = None
-        self._vertices = None
-        self._packet2event = None
+    def __init__(self, parser_run_config, input_files=None):
+        self._input_files = input_files
+        if not isinstance(input_files, str):
+            raise TypeError('Input file must be a str type')
         self._event_ids = None
         self._event_t0s = None
-        self._if_spill = False
+        self._event_hit_indices = None
+        self._hits = None
+        self._backtracked_hits = None
+        self._segments = None
+        self._trajectories = None
+        self._interactions = None
         self._run_config = parser_run_config
         self._is_sim = False
-        
+
         if input_files:
             self.ReadFile(input_files)
 
@@ -38,172 +41,158 @@ class FlowReader:
 
     def __iter__(self):
         for entry in range(len(self)):
-            yield self.GetEntry(entry)
+            yield self.GetEvent(entry)
 
-    #def _correct_t0s(self,event_t0s,num_event):
-    #    # compute dt.
-    #    dt=event_t0s[1:]-event_t0s[:-1]
-    #    print(f'    Found {(dt==0).sum()} duplicate T0 values (removing)' )
-    #    print(f'    Entries removed: {np.where(dt==0)[0]+1}')
-    #    # generate a mask for dt>0
-    #    mask=np.insert(np.where(dt>0)[0]+1,0,0)
-    #    # apply mask
-    #    corrected_t0s = event_t0s[mask]
-    #    return corrected_t0s
-    
-    def ReadFile(self,input_files,verbose=False):
-        mc_packets_assn = []
-        packets  = []
+    def ReadFile(self, input_files, verbose=False):
+        event_ids = []
+        calib_final_hits  = []
+        event_hit_indices = []
+        hits = []
+        backtracked_hits = []
         segments = []
         trajectories = []
-        vertices = []
-        
-        if type(input_files) == str:
-            input_files = [input_files]
-        
-        self._is_sim = False
-        for f in input_files:
-            with h5.File(f,'r') as fin:
-                packets.append(fin['packets'][:])
-                self._is_sim = 'mc_packets_assn' in fin.keys()
-                if self._is_sim:
-                    mc_packets_assn.append(fin['mc_packets_assn'][:])
-                    segments.append(fin['tracks'][:])
-                    trajectories.append(fin['trajectories'][:])
-                    vertices.append(fin['vertices'][:])
-                    if verbose: print('Read-in:',f)
+        event_trajectories = []
+        t0s = []
+
+        print('Reading input file...')
+
+        # H5Flow's H5FlowDataManager class associated datasets through references
+        # These paths help us get the correct associations
+        events_path = 'charge/events/'
+        t0s_path = '/combined/t0/'
+        events_data_path = 'charge/events/data/'
+        event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
+        calib_final_hits_path = 'charge/calib_final_hits/'
+        calib_prompt_hits_path = 'charge/calib_prompt_hits/'
+        backtracked_hits_path = 'mc_truth/calib_final_hit_backtrack/data'
+        packets_path = 'charge/packets'
+        interactions_path = 'mc_truth/interactions/data'
+        segments_path = 'mc_truth/segments/'
+        trajectories_path = 'mc_truth/trajectories/data'
+
+        self._is_sim = False 
+        # TODO Currently only reading one input file at a time. Is it 
+        # necessary to read multiple? If so, how to handle non-unique
+        # event IDs?
+        #for f in input_files:
+        flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
+        with h5py.File(input_files, 'r') as fin:
+            events = flow_manager[events_path]
+            events_data = events['data']
+            self._event_ids = events_data['id']
+            self._event_t0s = flow_manager[events_path, t0s_path]
+            self._event_hit_indices = flow_manager[event_hit_indices_path]
+            self._hits = flow_manager[calib_final_hits_path+'data']
+            self._backtracked_hits = flow_manager[backtracked_hits_path]
+            self._is_sim = 'mc_truth' in fin.keys()
+            if self._is_sim:
+                #self._segments = flow_manager[events_path,
+                #                              calib_final_hits_path,
+                #                              calib_prompt_hits_path,
+                #                              packets_path,
+                #                              segments_path]
+                self._segments = flow_manager[segments_path+'data']
+                self._trajectories = flow_manager[trajectories_path]
+                self._interactions = flow_manager[interactions_path]
+
                 
-        self._packets = np.concatenate(packets)
+        # This next bit is only necessary if reading multiple files
+        # Stack datasets so that there's a "file index" preceding the event index
+        #self._event_ids = np.stack(event_ids)
+        #self._event_ids = np.concatenate(event_ids)
+        #self._event_t0s = np.stack(t0s)
+        #self._calib_final_hits = np.stack(calib_final_hits)
+        #self._t0s = np.stack(t0s)
+        #self._segments = np.stack(segments)
+        #self._trajectories = np.stack(trajectories)
 
         if not self._is_sim:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
-        self._mc_packets_assn = np.concatenate(mc_packets_assn)
-        self._segments  = np.concatenate(segments )
-        self._trajectories = np.concatenate(trajectories)
-        self._vertices = np.concatenate(vertices)
-        
-        # create mapping
-        self._packet2event = EventParser.packet_to_eventid(self._mc_packets_assn, self._segments, self._vertices)
-        
-        packet_mask = self._packet2event != -1
-        ctr_packet  = len(self._packets)
-        ctr_invalid_packet = ctr_packet - packet_mask.sum()
-        if verbose:
-            print('    %d (%.2f%%) packets without an event ID assignment. They will be ignored.' % (ctr_invalid_packet,
-                                                                                                     ctr_invalid_packet/ctr_packet)
-                 )
-        
-        # create a list of unique Event IDs
-        self._event_ids = np.unique(self._packet2event[packet_mask]).astype(np.int64)
-        if verbose:
-            missing_ids = [i for i in np.arange(np.min(self._event_ids),np.max(self._event_ids)+1,1) if not i in self._event_ids]
-            print('    %d unique event IDs found.' % len(self._event_ids))
-            print('    Potentially missing %d event IDs %s' % (len(missing_ids),str(missing_ids)))
-        
-        # create a list of corresponding T0s        
-        self._event_t0s = EventParser.get_t0_event(self._vertices,self._run_config)
 
-        # Assert strong assumptions here
-        # the number of readout should be same as the number of valid Event IDs
-        if len(self._event_ids) > len(self._event_t0s):
-            raise ValueError(f'Mismatch in the number of unique Event IDs {len(self._event_ids)} and event T0 counts {self._event_t0s.shape[0]}')
+    # To truth associations go as hits -> segments -> trajectories
+    def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
+        '''
+        The Driver class needs to know the number of event trajectories in advance.
+        This function uses the backtracked hits dataset to map hits->segments->trajectories
+        and fills segment and trajectory IDs corresponding to hits. 
+        '''
+        max_contributors = 100
+        #hit_threshold = 0.0001
+        #backtracked_hits = self._backtracked_hits
+        # TODO Calculate the length of this in advance and use reserve; appending is slow!
+        truth_dict = {
+            'segment_ids': [],
+            'trajectory_ids': [],
+        }
 
-        if len(self._event_ids) < len(self._event_t0s):
-            print('    %d T0s found > %d unique event IDs.' % (len(self._event_t0s),len(self._event_ids)))
-            print('    Ignoring the extra t0s...')
+        segment_ids = []
+        trajectory_ids = []
+        for i_bt, backtracked_hit in enumerate(backtracked_hits):
+            for contrib in range(max_contributors):
+                if abs(backtracked_hit['fraction'][contrib]) == 0: continue
+                #from larnd2supera, 2023-09-14 YC: 
+                #I think frac_min should be allowed to be below 0 for the sake of induced current. 
+                #SK: So, only skipping 0 
+                segment_id = backtracked_hit['segment_id'][contrib]
+                segment = segments[segment_id]
+                segment_ids.append(segment_id)
+                trajectory_id = segment['traj_id']
+                trajectory = trajectories[trajectory_id]
+                trajectory_parent_id = trajectory['parent_id']
+                trajectory_ids.append(trajectory_id)
+                trajectory_ids.append(trajectory_parent_id)
 
-        # Now it's safe to assume all readout groups for every event shares the same T0
-        self._event_t0s = self._event_t0s.flatten()
 
-    def GetEvent(self,event_id):
+        truth_dict['segment_ids'] = segment_ids
+        truth_dict['trajectory_ids'] = sorted(trajectory_ids)
+
+        return truth_dict
+
+    def GetEvent(self, event_index):
         
-        index_loc = (self._event_ids == event_id).nonzero()[0]
-        
-        if len(index_loc) < 1:
-            print('Event ID',event_id,'not found in the data')
+        if event_index >= len(self._event_ids):
+            print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._event_ids)))
             print('Invalid read request (returning None)')
             return None
         
-        return GetEntry(index_loc[0])
-
-    def CheckIntegrity(self,data,fix_association=False):
-
-        flag = True
-        tid_range0 = np.array([t['trackID'] for t in data.trajectories])
-        tid_range1 = np.array([s['trackID'] for s in data.segments    ])
-
-        if tid_range0.max() < tid_range1.max():
-            print('[ERROR] Max Track ID in the segments exceeds the maximum of the trajectories')
-            flag = False
-
-        if tid_range0.min() > tid_range1.min():
-            print('[ERROR] Min Track ID in the segments is below the minimum of the trajectories')
-            flag = False
-
-        if not flag:
-            return flag
-
-        seg_index = data.mc_packets_assn['track_ids']
-        # check if max index is within the number of segments
-        max_index = seg_index.max()
-        min_index = seg_index[seg_index>-1].min()
-
-        prefix = '[WARNING]' if fix_association else '[ERROR]'
-        if min_index < data.segment_index_min:
-            # Bad segment index on low end
-
-            print(prefix,'Minimum segment index from the association:',min_index)
-            print('        Index range of segments for this event:',data.segment_index_min,
-                '=>',data.segment_index_min+len(data.segments))
-            flag = False
-            if fix_association:
-                print('[WARNING] ignoring the bad association')
-                seg_index[seg_index<data.segment_index_min] = -1
-                data.mc_packets_assn['track_ids'] = seg_index
-                flag = True
-
-        if (max_index - data.segment_index_min) >= len(data.segments):
-            # Bad segment index on high end
-            print(prefix,'Maximum segment index from the association:',max_index)
-            print('        Index range of segments for this event:',data.segment_index_min,
-                '=>',data.segment_index_min+len(data.segments))
-            flag = False
-            if fix_association:
-                print('[WARNING] ignoring the bad association')
-                seg_index[seg_index>=(data.segment_index_min+len(data.segments))] = -1
-                data.mc_packets_assn['track_ids'] = seg_index
-                flag = True
-
-        return flag
-
-
-    def GetEntry(self,index):
-        
-        if index >= len(self._event_ids):
-            print('Entry',index,'is above allowed entry index (<%d)' % len(self._event_ids))
-            print('Invalid read request (returning None)')
-            return None
-        
-        # Now return event info for the found index
         result = InputEvent()
 
-        result.event_separator = self._run_config['event_separator']
-        
-        result.event_id = self._event_ids[index]
-        result.t0 = self._event_t0s[result.event_id]
+        result.event_id = self._event_ids[event_index]
 
-        mask = self._packet2event == result.event_id
-        
-        result.packets = self._packets[mask]
-        result.mc_packets_assn = self._mc_packets_assn[mask]
-        
-        mask = self._segments[self._run_config['event_separator']] == result.event_id
-        result.segments = self._segments[mask]
-        
-        result.segment_index_min = mask.nonzero()[0][0]
-        
-        mask = self._trajectories[self._run_config['event_separator']] == result.event_id
-        result.trajectories = self._trajectories[mask]
+
+        result.t0 = self._event_t0s[result.event_id]['ts']
+
+        result.hit_indices = self._event_hit_indices[result.event_id]
+        hit_start_index = self._event_hit_indices[result.event_id][0]
+        hit_stop_index  = self._event_hit_indices[result.event_id][1]
+        result.hits = self._hits[hit_start_index:hit_stop_index]
+        result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
+
+        truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
+                                                    self._segments, 
+                                                    self._trajectories)
+        event_trajectory_ids = truth_ids_dict['trajectory_ids']
+        trajectories_array = np.array(self._trajectories)
+        result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
+
+        event_segment_ids = truth_ids_dict['segment_ids']
+        segments_array = np.array(self._segments)
+        result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
+
+
+        result.interactions = self._interactions
         
         return result  
+
+    def EventDump(self, input_event):
+        print('-----------EVENT DUMP-----------------')
+        print('Event ID {}'.format(input_event.event_id))
+        print('Event t0 {}'.format(input_event.t0))
+        print('Event hit indices (start, stop):', input_event.hit_indices)
+        print('Backtracked hits len:', len(input_event.backtracked_hits))
+        print('hits shape:', input_event.hits.shape)
+        print('segments in this event:', len(input_event.segments))
+        print('trajectories in this event:', len(input_event.trajectories))
+        print('interactions in this event:', len(input_event.interactions))
+

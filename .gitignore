@@ -133,3 +133,6 @@ todo.txt
 #*yaml
 *pkl
 *h5
+*.txt
+*.root
+*.backup

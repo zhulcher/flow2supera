@@ -111,6 +111,8 @@ def run_supera(out_file='larcv.root',
         
     for entry in range(len(reader)):
 
+        print('***************ENTRY', entry, '******************')
+
         if num_skip and entry < num_skip:
             continue
 
@@ -122,11 +124,12 @@ def run_supera(out_file='larcv.root',
         print(f'Processing Entry {entry}')
 
         t0 = time.time()
-        input_data = reader.GetEntry(entry)
-        is_good_event = reader.CheckIntegrity(input_data,ignore_bad_association)
-        if not is_good_event:
-            print('[ERROR] Entry', entry, 'is not valid; skipping')
-            continue
+        input_data = reader.GetEvent(entry)
+        reader.EventDump(input_data)
+        #is_good_event = reader.CheckIntegrity(input_data, ignore_bad_association)
+        #if not is_good_event:
+        #    print('[ERROR] Entry', entry, 'is not valid; skipping')
+        #    continue
         time_read = time.time() - t0
         
         t1 = time.time()
@@ -140,34 +143,34 @@ def run_supera(out_file='larcv.root',
 
         # Perform an integrity check
         if save_log:
-            log_supera_integrity_check(EventInput,driver,logger,verbose)
+            log_supera_integrity_check(EventInput, driver, logger, verbose)
 
         # Start data store process
         t3 = time.time()
         result = driver.Label()
         meta   = larcv_meta(driver.Meta())
         
-        tensor_energy = writer.get_data("sparse3d","pcluster")
-        result.FillTensorEnergy(id_v,value_v)
-        larcv.as_event_sparse3d(tensor_energy,meta,id_v,value_v)
+        tensor_energy = writer.get_data("sparse3d", "pcluster")
+        result.FillTensorEnergy(id_v, value_v)
+        larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
 
-        tensor_packets = writer.get_data("sparse3d","packets")
-        driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v,value_v)
-        larcv.as_event_sparse3d(tensor_packets,meta,id_v,value_v)
+        tensor_packets = writer.get_data("sparse3d", "packets")
+        driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
+        larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
 
-        tensor_semantic = writer.get_data("sparse3d","pcluster_semantics")
-        result.FillTensorSemantic(id_v,value_v)
-        larcv.as_event_sparse3d(tensor_semantic,meta,id_v,value_v)
+        tensor_semantic = writer.get_data("sparse3d", "pcluster_semantics")
+        result.FillTensorSemantic(id_v, value_v)
+        larcv.as_event_sparse3d(tensor_semantic,meta, id_v, value_v)
 
-        cluster_energy = writer.get_data("cluster3d","pcluster")
-        result.FillClustersEnergy(id_vv,value_vv)
-        larcv.as_event_cluster3d(cluster_energy,meta,id_vv,value_vv)
+        cluster_energy = writer.get_data("cluster3d", "pcluster")
+        result.FillClustersEnergy(id_vv, value_vv)
+        larcv.as_event_cluster3d(cluster_energy, meta, id_vv, value_vv)
 
-        cluster_dedx = writer.get_data("cluster3d","pcluster_dedx")
-        result.FillClustersdEdX(id_vv,value_vv)
-        larcv.as_event_cluster3d(cluster_dedx,meta,id_vv,value_vv)
+        cluster_dedx = writer.get_data("cluster3d", "pcluster_dedx")
+        result.FillClustersdEdX(id_vv, value_vv)
+        larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
         
-        particle = writer.get_data("particle","pcluster")
+        particle = writer.get_data("particle", "pcluster")
         for p in result._particles:
             if not p.valid:
                 continue
@@ -175,7 +178,7 @@ def run_supera(out_file='larcv.root',
             particle.append(larp)
 
         # TODO fill the run ID 
-        writer.set_id(0,0,int(input_data.event_id))
+        writer.set_id(0, 0, int(input_data.event_id))
         writer.save_entry()
         time_store = time.time() - t3
 
