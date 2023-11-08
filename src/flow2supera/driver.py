@@ -222,7 +222,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
     def TrajectoryToParticle(self, trajectory):
         ### What we have access to in new flow format: ###
-        # ('event_id', 'vertex_id', 'traj_id', 'traj_id', 'parent_id', 'E_start', 'pxyz_start', 
+        # ('event_id', 'vertex_id', 'traj_id', 'local_traj_id', 'parent_id', 'E_start', 'pxyz_start', 
         # 'xyz_start', 't_start', 'E_end', 'pxyz_end', 'xyz_end', 't_end', 'pdg_id', 
         # 'start_process', 'start_subprocess', 'end_process', 'end_subprocess')
         ###############################################################################################
@@ -232,7 +232,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         # but Supera/LArCV want a regular int, hence the type casting
         p.id             = int(trajectory['event_id'])
         p.interaction_id = int(trajectory['vertex_id'])
-        p.trackid        = int(trajectory['traj_id']) # TODO Is this right? What exactly is traj_id?
+        p.trackid        = int(trajectory['traj_id']) # Unique among all files used in truth-matching for MLreco
+        p.local_traj_id  = int(trajectory['local_traj_id']) # Not unique among all files, G4ID propagated from edep-sim, needed for inter-detector matching in ND_CAFMaker
         p.pdg            = int(trajectory['pdg_id'])
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
