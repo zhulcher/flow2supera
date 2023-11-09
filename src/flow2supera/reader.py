@@ -15,6 +15,12 @@ class InputEvent:
     segment_index_min = -1
     event_separator = ''
 
+class InputFlash:
+    flash_id = -1
+    sipm_hits = None
+    sum_hits = None
+    t0 = -1
+
 class FlowReader:
     
     def __init__(self, parser_run_config, input_files=None):
@@ -59,7 +65,7 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
-        t0s_path = '/combined/t0/'
+        light_events_data_path = 'light/events/data'
         events_data_path = 'charge/events/data/'
         event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         calib_final_hits_path = 'charge/calib_final_hits/'
