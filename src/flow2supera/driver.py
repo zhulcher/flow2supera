@@ -233,7 +233,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.id             = int(trajectory['event_id'])
         p.interaction_id = int(trajectory['vertex_id'])
         p.trackid        = int(trajectory['traj_id']) # Unique among all files used in truth-matching for MLreco
-        p.local_traj_id  = int(trajectory['local_traj_id']) # Not unique among all files, G4ID propagated from edep-sim, needed for inter-detector matching in ND_CAFMaker
+        if hasattr(p, "genid") and trajectory["parent_id"] < 0:# < 0 indicates a top-level particle (from GENIE)
+            p.genid = int(trajectory['local_traj_id'])
         p.pdg            = int(trajectory['pdg_id'])
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
