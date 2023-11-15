@@ -29,6 +29,8 @@ class FlowReader:
             raise TypeError('Input file must be a str type')
         self._event_ids = None
         self._event_t0s = None
+        self._flash_t0s = None
+        self._flash_ids = None
         self._event_hit_indices = None
         self._hits = None
         self._backtracked_hits = None
@@ -100,6 +102,9 @@ class FlowReader:
                 self._segments = flow_manager[segments_path+'data']
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
+            flash_events = flow_manager[light_events_data_path]['data']
+            self._flash_ids = flash_events['id']
+           # self.flash_t0s = flash_events['tai_ns']
 
                 
         # This next bit is only necessary if reading multiple files
