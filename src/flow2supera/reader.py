@@ -19,6 +19,7 @@ class InputFlash:
     flash_id = -1
     sipm_hits = None
     sum_hits = None
+    hit_indices = None
     t0 = -1
 
 class FlowReader:
@@ -47,6 +48,7 @@ class FlowReader:
         if self._event_ids is None: return 0
         return len(self._event_ids)
 
+    
     def __iter__(self):
         for entry in range(len(self)):
             yield self.GetEvent(entry)
@@ -67,7 +69,6 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
-        light_events_data_path = 'light/events/data'
         events_data_path = 'charge/events/data/'
         event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
         calib_final_hits_path = 'charge/calib_final_hits/'
@@ -102,9 +103,6 @@ class FlowReader:
                 self._segments = flow_manager[segments_path+'data']
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
-            flash_events = flow_manager[light_events_data_path]['data']
-            self._flash_ids = flash_events['id']
-           # self.flash_t0s = flash_events['tai_ns']
 
                 
         # This next bit is only necessary if reading multiple files
@@ -121,6 +119,7 @@ class FlowReader:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
 
+        
     # To truth associations go as hits -> segments -> trajectories
     def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
         '''
@@ -195,6 +194,8 @@ class FlowReader:
         result.interactions = self._interactions
         
         return result  
+ 
+
 
     def EventDump(self, input_event):
         print('-----------EVENT DUMP-----------------')
@@ -206,4 +207,68 @@ class FlowReader:
         print('segments in this event:', len(input_event.segments))
         print('trajectories in this event:', len(input_event.trajectories))
         print('interactions in this event:', len(input_event.interactions))
+
+
+class FlowFlashReader:
+    
+    def __init__(self, parser_run_config, input_files=None):
+        self._input_files = input_files
+        if not isinstance(input_files, str):
+            raise TypeError('Input file must be a str type')
+        
+        self._flash_t0s = None
+        self._flash_ids = None
+        self._hit_indices = None
+        self._sipm_hits = None
+       
+
+        if input_files:
+            self.ReadFlash(input_files)
+
+    def __len__(self):
+        if self._flash_ids is None: return 0
+        return len(self._flash_ids)
+
+    
+    def __iter__(self):
+        for entry in range(len(self)):
+            yield self.GetEvent(entry)
+
+    def ReadFlash(self, input_files, verbose=False):
+        flash_events_path = 'light/events/data'
+        hits_ref_region = 'light/events/ref/light/sipm_hits/ref_region'
+        sipm_hits = 'light/sipm_hits/data'
+        flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
+        with h5py.File(input_files, 'r') as fin:
+            flash_events = flow_manager[flash_events_path]
+            self._flash_ids = flash_events['id']
+            self._flash_t0s = flash_events['tai_ns'].flatten()
+            self._hit_indices = flow_manager[hits_ref_region]
+            self._sipm_hits = flow_manager[sipm_hits]
+    
+    def GetFlash(self, event_index):
+        
+        if event_index >= len(self._flash_ids):
+            print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._flash_ids)))
+            print('Invalid read request (returning None)')
+            return None
+        
+        result = InputFlash()
+
+        result.flash_id = self._flash_ids[event_index]
+        result.hit_indices = self._hit_indices[result.flash_id]
+        hit_start_index = self._hit_indices[result.flash_id][0]
+        hit_stop_index  = self._hit_indices[result.flash_id][1]
+        result.sipm_hits = self._sipm_hits[hit_start_index:hit_stop_index]
+        result.t0 = self._flash_t0s[event_index*8] #TO DO: why are there 8 entries? (TPC times?) How to handle this?
+        
+        return result  
+
+
+    def FlashDump(self, input_flash):
+        print('-----------EVENT DUMP-----------------')
+        print('Flash ID {}'.format(input_flash.flash_id))
+        print('Flash t0 {}'.format(input_flash.t0))
+        print('Flah SiPM hit indices (start, stop):', input_flash.hit_indices)
+
 
