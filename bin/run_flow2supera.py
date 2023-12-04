@@ -11,8 +11,12 @@ parser.add_option("-c", "--config", dest="config", metavar='FILE/KEYWORD', defau
                   help="Configuration keyword or a file path (full or relative including the file name)")
 parser.add_option("-n", "--num_events", dest="num_events", metavar="INT", default=-1,
                   help="number of events to process")
+parser.add_option("-f", "--num_flash_events", dest="num_flash_events", metavar="INT", default=-1,
+                  help="number of flash events to process")
 parser.add_option("-s", "--skip", dest="skip", metavar="INT", default=0,
                   help="number of first events to skip")
+parser.add_option("-x", "--num_flash_skip", dest="num_flash_skip", metavar="INT", default=0,
+                  help="number of first flash events to skip")
 #parser.add_option("-b", action="store_true", dest="ignore_bad_association", default=False)
 parser.add_option("-l", "--log", dest="log_file", metavar="FILE", default='',
                   help="the name of a log file to be created. ")
@@ -55,7 +59,9 @@ flow2supera.utils.run_supera(out_file=data.output_filename,
     in_file=args[0],
     config_key=data.config,
     num_events=int(data.num_events),
+    num_flash_events=int(data.num_flash_events),
     num_skip=int(data.skip),
+    num_flash_skip=int(data.num_flash_skip),
     #ignore_bad_association=bool(data.ignore_bad_association),
     save_log=data.log_file,
     )
