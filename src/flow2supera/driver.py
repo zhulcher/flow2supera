@@ -368,26 +368,3 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     supera_part.type = supera.kOtherShower
         else:
             supera_part.type = supera.kTrack
-
-    def ReadFlash(self, data, verbose=False):
-        
-        
-        hits = data.sipm_hits
-        
-        supera_flash = supera.FlashEventInput()
-        supera_flash.reserve(len(hits))
-        
-        print('Len hits:', len(hits))        
-        for i, hit in enumerate(hits):
-            flash_input = supera.FlashInput()
-            flash_input.valid = True
-            flash_input.flashev = self.HitsToFlash(hit) 
-            supera_flash.push_back(flash_input)
-        print('Len supera_flash:', len(supera_flash))
-        return supera_flash
-
-    def HitsToFlash(self, hit):
-        f = supera.Flash()
-        f.id = hit['id']
-        return f
-    

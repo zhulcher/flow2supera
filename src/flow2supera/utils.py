@@ -74,10 +74,13 @@ def log_supera_integrity_check(data, driver, log, verbose=False):
     
 def larcv_flash(f):
         
-    larf=larcvFlash()
+    larf=larcv.Flash()
     
-    larf.id              (p.flashev.id)
-   
+    larf.id              (int(f.id))
+    larf.time            (f.time)
+    larf.timeWidth       (f.timeWidth)
+    larf.PEPerOpDet      (f.PEPerOpDet)
+    # 
     return larf
 
 # Fill SuperaAtomic class and hand off to label-making
@@ -122,6 +125,7 @@ def run_supera(out_file='larcv.root',
             logger[key]=[]
         driver.log(logger)
         
+    print("----------------Processing charge events----------------")
     for entry in range(len(reader)):
 
         if num_skip and entry < num_skip:
@@ -210,9 +214,10 @@ def run_supera(out_file='larcv.root',
             logger['time_generate'].append(time_generate)
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
-
+        
+    print("----------------Processing light events----------------")
     for entry in range(len(reader_flash)):
-
+        #FIXME: this loop also adds entry to other branches
         if num_flash_skip and entry < num_flash_skip:
             continue
 
@@ -226,28 +231,12 @@ def run_supera(out_file='larcv.root',
       
         input_flash_data = reader_flash.GetFlash(entry)
         reader_flash.FlashDump(input_flash_data)
-        EventFlash = driver.ReadFlash(input_flash_data)
-#         driver.GenerateImageMeta(EventFlash)
-#         driver.GenerateLabel(EventFlash) 
-        
-        result = driver.Label()
-        
+
+        flash_data = larcv_flash(input_flash_data)
         flash = writer.get_data("opflash", "sipm_hits")
-        print("len flashes", len(result._flashes))
-        for f in result._flashes:
-            if not f.valid:
-                continue
-            larf = larcv_flash(f)
-            print(larf.id)
-            flash.append(larf)
+        flash.append(flash_data) 
             
-                #propagating trigger info
-        trigger = writer.get_data("trigger", "flash")
-        trigger.id(int(input_flash_data.flash_id))  # fixme: this will need to be different for real data?
-        trigger.time_ns(int(input_flash_data.t0))
-        
-            
-        writer.set_id(0, 0, int(input_flash_data.flash_id))
+        writer.set_id(0, 0, int(input_flash_data.id))
         writer.save_entry()
 
 

@@ -1,6 +1,8 @@
 import h5py 
 import h5flow
 import numpy as np
+from ROOT import supera
+import cppyy
 
 class InputEvent:
     event_id = -1
@@ -15,12 +17,6 @@ class InputEvent:
     segment_index_min = -1
     event_separator = ''
 
-class InputFlash:
-    flash_id = -1
-    sipm_hits = None
-    sum_hits = None
-    hit_indices = None
-    t0 = -1
 
 class FlowReader:
     
@@ -253,22 +249,24 @@ class FlowFlashReader:
             print('Invalid read request (returning None)')
             return None
         
-        result = InputFlash()
+        result = supera.Flash()
+        result.id = self._flash_ids[event_index]
+        result.time = self._flash_t0s[event_index*8]/1000. #TO DO: why are there 8 entries? (TPC times?) How to handle this?#  
 
-        result.flash_id = self._flash_ids[event_index]
-        result.hit_indices = self._hit_indices[result.flash_id]
-        hit_start_index = self._hit_indices[result.flash_id][0]
-        hit_stop_index  = self._hit_indices[result.flash_id][1]
-        result.sipm_hits = self._sipm_hits[hit_start_index:hit_stop_index]
-        result.t0 = self._flash_t0s[event_index*8] #TO DO: why are there 8 entries? (TPC times?) How to handle this?
-        
+        hit_start_index = self._hit_indices[result.id][0]
+        hit_stop_index  = self._hit_indices[result.id][1]
+        sipm_hits = self._sipm_hits[hit_start_index:hit_stop_index]
+        result.PEPerOpDet = cppyy.gbl.std.vector('double')() #Because c++ vectors are not correctly recognized as vectors here, other supera types seem fine
+        for hit in sipm_hits:
+            result.PEPerOpDet.push_back(hit['sum'])
+        result.timeWidth = (sipm_hits['busy_ns'][len(sipm_hits)-1] - sipm_hits['busy_ns'][0])/1000. #check this, busy_ns is  timestamp of peak relative to trigger 
         return result  
 
 
     def FlashDump(self, input_flash):
         print('-----------EVENT DUMP-----------------')
-        print('Flash ID {}'.format(input_flash.flash_id))
-        print('Flash t0 {}'.format(input_flash.t0))
-        print('Flah SiPM hit indices (start, stop):', input_flash.hit_indices)
+        print('Flash ID {}'.format(input_flash.id))
+        print('Flash t0 us {}'.format(input_flash.time))
+        print('Flash width in us {}'.format(input_flash.timeWidth))
 
 
