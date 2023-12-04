@@ -323,10 +323,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     else:
                         print("    WARNING: UNEXPECTED CASE for IONIZATION ")
                         print("      PDG",pdg_code,
-                              "TrackId",edepsim_part['trackID'],
+                              "TrackId",edepsim_part['traj_id'],
                               "Kinetic Energy",ke,
                               "Parent PDG",supera_part.parent_pdg ,
-                              "Parent TrackId",edepsim_part['parentID'],
+                              "Parent TrackId",edepsim_part['parent_id'],
                               "G4ProcessType",g4type_main ,
                               "SubProcessType",g4type_sub)
                         supera_part.type = supera.kIonization
