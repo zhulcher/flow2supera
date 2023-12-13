@@ -100,7 +100,6 @@ class FlowReader:
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
 
-                
         # This next bit is only necessary if reading multiple files
         # Stack datasets so that there's a "file index" preceding the event index
         #self._event_ids = np.stack(event_ids)
@@ -147,8 +146,9 @@ class FlowReader:
                 trajectory = trajectories[trajectory_id]
                 trajectory_parent_id = trajectory['parent_id']
                 trajectory_ids.append(trajectory_id)
+                # Some trajectories' parents don't appear in the main trajectories
+                # list, but need to be seen by the driver. Add them here explicitly.
                 trajectory_ids.append(trajectory_parent_id)
-
 
         truth_dict['segment_ids'] = segment_ids
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
