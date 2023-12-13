@@ -1,7 +1,7 @@
 import h5py 
 import h5flow
 import numpy as np
-from ROOT import supera
+#from ROOT import supera
 import cppyy
 
 class InputEvent:
@@ -205,68 +205,68 @@ class FlowReader:
         print('interactions in this event:', len(input_event.interactions))
 
 
-class FlowFlashReader:
+# class FlowFlashReader:
     
-    def __init__(self, parser_run_config, input_files=None):
-        self._input_files = input_files
-        if not isinstance(input_files, str):
-            raise TypeError('Input file must be a str type')
+#     def __init__(self, parser_run_config, input_files=None):
+#         self._input_files = input_files
+#         if not isinstance(input_files, str):
+#             raise TypeError('Input file must be a str type')
         
-        self._flash_t0s = None
-        self._flash_ids = None
-        self._hit_indices = None
-        self._sipm_hits = None
+#         self._flash_t0s = None
+#         self._flash_ids = None
+#         self._hit_indices = None
+#         self._sipm_hits = None
        
 
-        if input_files:
-            self.ReadFlash(input_files)
+#         if input_files:
+#             self.ReadFlash(input_files)
 
-    def __len__(self):
-        if self._flash_ids is None: return 0
-        return len(self._flash_ids)
+#     def __len__(self):
+#         if self._flash_ids is None: return 0
+#         return len(self._flash_ids)
 
     
-    def __iter__(self):
-        for entry in range(len(self)):
-            yield self.GetEvent(entry)
+#     def __iter__(self):
+#         for entry in range(len(self)):
+#             yield self.GetEvent(entry)
 
-    def ReadFlash(self, input_files, verbose=False):
-        flash_events_path = 'light/events/data'
-        hits_ref_region = 'light/events/ref/light/sipm_hits/ref_region'
-        sipm_hits = 'light/sipm_hits/data'
-        flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
-        with h5py.File(input_files, 'r') as fin:
-            flash_events = flow_manager[flash_events_path]
-            self._flash_ids = flash_events['id']
-            self._flash_t0s = flash_events['tai_ns'].flatten()
-            self._hit_indices = flow_manager[hits_ref_region]
-            self._sipm_hits = flow_manager[sipm_hits]
+#     def ReadFlash(self, input_files, verbose=False):
+#         flash_events_path = 'light/events/data'
+#         hits_ref_region = 'light/events/ref/light/sipm_hits/ref_region'
+#         sipm_hits = 'light/sipm_hits/data'
+#         flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
+#         with h5py.File(input_files, 'r') as fin:
+#             flash_events = flow_manager[flash_events_path]
+#             self._flash_ids = flash_events['id']
+#             self._flash_t0s = flash_events['tai_ns'].flatten()
+#             self._hit_indices = flow_manager[hits_ref_region]
+#             self._sipm_hits = flow_manager[sipm_hits]
     
-    def GetFlash(self, event_index):
+#     def GetFlash(self, event_index):
         
-        if event_index >= len(self._flash_ids):
-            print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._flash_ids)))
-            print('Invalid read request (returning None)')
-            return None
+#         if event_index >= len(self._flash_ids):
+#             print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._flash_ids)))
+#             print('Invalid read request (returning None)')
+#             return None
         
-        result = supera.Flash()
-        result.id = self._flash_ids[event_index]
-        result.time = self._flash_t0s[event_index*8]/1000. #TO DO: why are there 8 entries? (TPC times?) How to handle this?#  
+#         result = supera.Flash()
+#         result.id = self._flash_ids[event_index]
+#         result.time = self._flash_t0s[event_index*8]/1000. #TO DO: why are there 8 entries? (TPC times?) How to handle this?#  
 
-        hit_start_index = self._hit_indices[result.id][0]
-        hit_stop_index  = self._hit_indices[result.id][1]
-        sipm_hits = self._sipm_hits[hit_start_index:hit_stop_index]
-        result.PEPerOpDet = cppyy.gbl.std.vector('double')() #Because c++ vectors are not correctly recognized as vectors here, other supera types seem fine
-        for hit in sipm_hits:
-            result.PEPerOpDet.push_back(hit['sum'])
-        result.timeWidth = (sipm_hits['busy_ns'][len(sipm_hits)-1] - sipm_hits['busy_ns'][0])/1000. #check this, busy_ns is  timestamp of peak relative to trigger 
-        return result  
+#         hit_start_index = self._hit_indices[result.id][0]
+#         hit_stop_index  = self._hit_indices[result.id][1]
+#         sipm_hits = self._sipm_hits[hit_start_index:hit_stop_index]
+#         result.PEPerOpDet = cppyy.gbl.std.vector('double')() #Because c++ vectors are not correctly recognized as vectors here, other supera types seem fine
+#         for hit in sipm_hits:
+#             result.PEPerOpDet.push_back(hit['sum'])
+#         result.timeWidth = (sipm_hits['busy_ns'][len(sipm_hits)-1] - sipm_hits['busy_ns'][0])/1000. #check this, busy_ns is  timestamp of peak relative to trigger 
+#         return result  
 
 
-    def FlashDump(self, input_flash):
-        print('-----------EVENT DUMP-----------------')
-        print('Flash ID {}'.format(input_flash.id))
-        print('Flash t0 us {}'.format(input_flash.time))
-        print('Flash width in us {}'.format(input_flash.timeWidth))
+#     def FlashDump(self, input_flash):
+#         print('-----------EVENT DUMP-----------------')
+#         print('Flash ID {}'.format(input_flash.id))
+#         print('Flash t0 us {}'.format(input_flash.time))
+#         print('Flash width in us {}'.format(input_flash.timeWidth))
 
 

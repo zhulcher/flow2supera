@@ -72,16 +72,16 @@ def log_supera_integrity_check(data, driver, log, verbose=False):
     log['out_cluster_sum'].append(cluster_sum)
     log['out_unass_sum'].append(unass_sum)
     
-def larcv_flash(f):
+# def larcv_flash(f):
         
-    larf=larcv.Flash()
+#     larf=larcv.Flash()
     
-    larf.id              (int(f.id))
-    larf.time            (f.time)
-    larf.timeWidth       (f.timeWidth)
-    larf.PEPerOpDet      (f.PEPerOpDet)
-    # 
-    return larf
+#     larf.id              (int(f.id))
+#     larf.time            (f.time)
+#     larf.timeWidth       (f.timeWidth)
+#     larf.PEPerOpDet      (f.PEPerOpDet)
+#     # 
+#     return larf
 
 # Fill SuperaAtomic class and hand off to label-making
 def run_supera(out_file='larcv.root',
@@ -215,29 +215,29 @@ def run_supera(out_file='larcv.root',
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
         
-    print("----------------Processing light events----------------")
-    for entry in range(len(reader_flash)):
-        #FIXME: this loop also adds entry to other branches
-        if num_flash_skip and entry < num_flash_skip:
-            continue
+#     print("----------------Processing light events----------------")
+#     for entry in range(len(reader_flash)):
+#         #FIXME: this loop also adds entry to other branches
+#         if num_flash_skip and entry < num_flash_skip:
+#             continue
 
-        if num_flash_events <= 0:
-            break
+#         if num_flash_events <= 0:
+#             break
 
-        num_flash_events -= 1 
+#         num_flash_events -= 1 
 
-        print(f'Processing Entry {entry}')
+#         print(f'Processing Entry {entry}')
 
       
-        input_flash_data = reader_flash.GetFlash(entry)
-        reader_flash.FlashDump(input_flash_data)
+#         input_flash_data = reader_flash.GetFlash(entry)
+#         reader_flash.FlashDump(input_flash_data)
 
-        flash_data = larcv_flash(input_flash_data)
-        flash = writer.get_data("opflash", "sipm_hits")
-        flash.append(flash_data) 
+#         flash_data = larcv_flash(input_flash_data)
+#         flash = writer.get_data("opflash", "sipm_hits")
+#         flash.append(flash_data) 
             
-        writer.set_id(0, 0, int(input_flash_data.id))
-        writer.save_entry()
+#         writer.set_id(0, 0, int(input_flash_data.id))
+#         writer.save_entry()
 
 
     writer.finalize()
