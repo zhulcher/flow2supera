@@ -20,7 +20,7 @@ python3 -m pip install .
 
 The main executable script is located at `bin/run_flow2supera.py` relative to the top directory. The _required_ arguments are the input and output file names:
 ```
-python3 bin/run_flow2supera.py -o <output_file> <input_ndlar_flow_file>
+python3 bin/run_flow2supera.py -o <output_file> -c 2x2 <input_ndlar_flow_file>
 ```
 
 You can also specify the following _optional_ arguments:
