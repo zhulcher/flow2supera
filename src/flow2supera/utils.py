@@ -71,13 +71,26 @@ def log_supera_integrity_check(data, driver, log, verbose=False):
     log['out_image_num'].append(energy_num)
     log['out_cluster_sum'].append(cluster_sum)
     log['out_unass_sum'].append(unass_sum)
+    
+# def larcv_flash(f):
+        
+#     larf=larcv.Flash()
+    
+#     larf.id              (int(f.id))
+#     larf.time            (f.time)
+#     larf.timeWidth       (f.timeWidth)
+#     larf.PEPerOpDet      (f.PEPerOpDet)
+#     # 
+#     return larf
 
 # Fill SuperaAtomic class and hand off to label-making
 def run_supera(out_file='larcv.root',
                in_file='',
                config_key='',
                num_events=-1,
+               num_flash_events=-1,
                num_skip=0,
+               num_flash_skip=0,
                ignore_bad_association=True,
                save_log=None):
 
@@ -86,6 +99,7 @@ def run_supera(out_file='larcv.root',
     writer = get_iomanager(out_file)
     driver = get_flow2supera(config_key)
     reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
+    #reader_flash = flow2supera.reader.FlowFlashReader(driver.parser_run_config(), in_file)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
@@ -95,6 +109,8 @@ def run_supera(out_file='larcv.root',
 
     if num_events < 0:
         num_events = len(reader)
+    # if num_flash_events < 0:
+    #     num_flash_events = len(reader_flash)
 
     print("--- startup {:.2e} seconds ---".format(time.time() - start_time))
 
@@ -109,9 +125,8 @@ def run_supera(out_file='larcv.root',
             logger[key]=[]
         driver.log(logger)
         
+    print("----------------Processing charge events----------------")
     for entry in range(len(reader)):
-
-        print('***************ENTRY', entry, '******************')
 
         if num_skip and entry < num_skip:
             continue
@@ -153,7 +168,7 @@ def run_supera(out_file='larcv.root',
         tensor_energy = writer.get_data("sparse3d", "pcluster")
         result.FillTensorEnergy(id_v, value_v)
         larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
-
+        
         tensor_packets = writer.get_data("sparse3d", "packets")
         driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
         larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
@@ -169,14 +184,21 @@ def run_supera(out_file='larcv.root',
         cluster_dedx = writer.get_data("cluster3d", "pcluster_dedx")
         result.FillClustersdEdX(id_vv, value_vv)
         larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
-        
+
         particle = writer.get_data("particle", "pcluster")
+        print("len particles", len(result._particles))
         for p in result._particles:
             if not p.valid:
                 continue
             larp = larcv_particle(p)
             particle.append(larp)
-
+            
+        #propagating trigger info
+        trigger = writer.get_data("trigger", "base")
+        trigger.id(int(input_data.event_id))  # fixme: this will need to be different for real data?
+        trigger.time_s(int(input_data.t0))
+        trigger.time_ns(int(1e9 * (input_data.t0 - trigger.time_s())))
+        
         # TODO fill the run ID 
         writer.set_id(0, 0, int(input_data.event_id))
         writer.save_entry()
@@ -192,10 +214,34 @@ def run_supera(out_file='larcv.root',
             logger['time_generate'].append(time_generate)
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
+        
+#     print("----------------Processing light events----------------")
+#     for entry in range(len(reader_flash)):
+#         #FIXME: this loop also adds entry to other branches
+#         if num_flash_skip and entry < num_flash_skip:
+#             continue
+
+#         if num_flash_events <= 0:
+#             break
+
+#         num_flash_events -= 1 
+
+#         print(f'Processing Entry {entry}')
+
+      
+#         input_flash_data = reader_flash.GetFlash(entry)
+#         reader_flash.FlashDump(input_flash_data)
+
+#         flash_data = larcv_flash(input_flash_data)
+#         flash = writer.get_data("opflash", "sipm_hits")
+#         flash.append(flash_data) 
+            
+#         writer.set_id(0, 0, int(input_flash_data.id))
+#         writer.save_entry()
+
 
     writer.finalize()
 
-    # store supera log dictionary
     if save_log:
         np.savez('log_flow2supera.npz',**logger)
 
