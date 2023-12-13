@@ -99,7 +99,7 @@ def run_supera(out_file='larcv.root',
     writer = get_iomanager(out_file)
     driver = get_flow2supera(config_key)
     reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
-    reader_flash = flow2supera.reader.FlowFlashReader(driver.parser_run_config(), in_file)
+    #reader_flash = flow2supera.reader.FlowFlashReader(driver.parser_run_config(), in_file)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
@@ -109,8 +109,8 @@ def run_supera(out_file='larcv.root',
 
     if num_events < 0:
         num_events = len(reader)
-    if num_flash_events < 0:
-        num_flash_events = len(reader_flash)
+    # if num_flash_events < 0:
+    #     num_flash_events = len(reader_flash)
 
     print("--- startup {:.2e} seconds ---".format(time.time() - start_time))
 
