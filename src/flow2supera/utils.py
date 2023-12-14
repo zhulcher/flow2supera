@@ -94,7 +94,7 @@ def run_supera(out_file='larcv.root',
     value_v=ROOT.std.vector("float")()
 
     if num_events < 0:
-        num_events = len(reader))
+        num_events = len(reader)
 
     print("--- startup {:.2e} seconds ---".format(time.time() - start_time))
 
