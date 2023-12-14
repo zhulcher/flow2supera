@@ -31,7 +31,6 @@ if not data.config in flow2supera.config.list_config() and not os.path.isfile(da
     print('Exiting')
     sys.exit(2)
 
-
 if len(args) < 1:
     print('No input files given! Exiting')
     sys.exit(3)
