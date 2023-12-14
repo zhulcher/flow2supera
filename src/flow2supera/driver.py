@@ -187,7 +187,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         # TODO Calculate the length of this in advance and use reserve; appending is slow!
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             reco_hit = data.hits[i_bt]
-            for contrib in range(len(backtracked_hits)):
+            for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
                 edep = supera.EDep()
                 edep.x = reco_hit['x']

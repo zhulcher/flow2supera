@@ -65,13 +65,13 @@ class FlowReader:
         # These paths help us get the correct associations
         events_path = 'charge/events/'
         events_data_path = 'charge/events/data/'
-        event_hit_indices_path = 'charge/events/ref/charge/calib_final_hits/ref_region/'
-        calib_final_hits_path = 'charge/calib_final_hits/'
-        calib_prompt_hits_path = 'charge/calib_prompt_hits/'
-        backtracked_hits_path = 'mc_truth/calib_final_hit_backtrack/data'
+        event_hit_indices_path = 'charge/events/ref/charge/calib_prompt_hits/ref_region/'
+        calib_final_hits_path = 'charge/calib_final_hits/data'
+        calib_prompt_hits_path = 'charge/calib_prompt_hits/data'
+        backtracked_hits_path = 'mc_truth/calib_prompt_hit_backtrack/data'
         packets_path = 'charge/packets'
         interactions_path = 'mc_truth/interactions/data'
-        segments_path = 'mc_truth/segments/'
+        segments_path = 'mc_truth/segments/data'
         trajectories_path = 'mc_truth/trajectories/data'
 
         self._is_sim = False 
@@ -86,7 +86,7 @@ class FlowReader:
             self._event_ids = events_data['id']
             self._event_t0s = events_data['ts_start']
             self._event_hit_indices = flow_manager[event_hit_indices_path]
-            self._hits = flow_manager[calib_final_hits_path+'data']
+            self._hits = flow_manager[calib_prompt_hits_path]
             self._backtracked_hits = flow_manager[backtracked_hits_path]
             self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
@@ -95,7 +95,7 @@ class FlowReader:
                 #                              calib_prompt_hits_path,
                 #                              packets_path,
                 #                              segments_path]
-                self._segments = flow_manager[segments_path+'data']
+                self._segments = flow_manager[segments_path]
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
 
@@ -130,7 +130,7 @@ class FlowReader:
         segment_ids = []
         trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
-            for contrib in range(len(backtracked_hits)):
+            for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
