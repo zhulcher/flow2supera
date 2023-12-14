@@ -183,19 +183,12 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     
             self.SetProcessType(traj, part.part, parent)
 
-        max_contributors = 100
-        hit_threshold = 0.0001
-        # TODO Conversion necessary? No?
         backtracked_hits = data.backtracked_hits
         # TODO Calculate the length of this in advance and use reserve; appending is slow!
-        #event_trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             reco_hit = data.hits[i_bt]
-            for contrib in range(max_contributors):
-                if abs(backtracked_hit['fraction'][contrib]) == 0: continue
-                #from larnd2supera, 2023-09-14 YC: 
-                #I think frac_min should be allowed to be below 0 for the sake of induced current. 
-                #SK: So, only skipping 0 
+            for contrib in range(len(backtracked_hits)):
+                if abs(backtracked_hit['fraction'][contrib]) == 0: break
                 edep = supera.EDep()
                 edep.x = reco_hit['x']
                 edep.y = reco_hit['y']

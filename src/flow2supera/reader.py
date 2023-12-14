@@ -123,31 +123,25 @@ class FlowReader:
         This function uses the backtracked hits dataset to map hits->segments->trajectories
         and fills segment and trajectory IDs corresponding to hits. 
         '''
-        max_contributors = 100
-        #hit_threshold = 0.0001
-        #backtracked_hits = self._backtracked_hits
-        # TODO Calculate the length of this in advance and use reserve; appending is slow!
         truth_dict = {
             'segment_ids': [],
             'trajectory_ids': [],
         }
-
+        trajectory_dict = {traj['traj_id']: traj for traj in trajectories}
         segment_ids = []
         trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
-            for contrib in range(max_contributors):
-                if abs(backtracked_hit['fraction'][contrib]) == 0: continue
-                #from larnd2supera, 2023-09-14 YC: 
-                #I think frac_min should be allowed to be below 0 for the sake of induced current. 
-                #SK: So, only skipping 0 
+            for contrib in range(len(backtracked_hits)):
+                if abs(backtracked_hit['fraction'][contrib]) == 0: break
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 segment_ids.append(segment_id)
                 trajectory_id = segment['traj_id']
-                trajectory = trajectories[trajectory_id]
-                trajectory_parent_id = trajectory['parent_id']
-                trajectory_ids.append(trajectory_id)
-                trajectory_ids.append(trajectory_parent_id)
+                trajectory = trajectory_dict.get(trajectory_id)
+                if trajectory is not None:
+                    trajectory_parent_id = trajectory['parent_id']
+                    trajectory_ids.append(trajectory_id)
+                    trajectory_ids.append(trajectory_parent_id)
 
 
         truth_dict['segment_ids'] = segment_ids
