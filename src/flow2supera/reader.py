@@ -115,6 +115,7 @@ class FlowReader:
 
         
     # To truth associations go as hits -> segments -> trajectories
+    
     def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
         '''
         The Driver class needs to know the number of event trajectories in advance.
@@ -125,7 +126,7 @@ class FlowReader:
             'segment_ids': [],
             'trajectory_ids': [],
         }
-        trajectory_dict = {traj['traj_id']: traj for traj in trajectories}
+        trajectory_dict = {traj['file_traj_id']: traj for traj in trajectories}
         segment_ids = []
         trajectory_ids = []
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
@@ -134,7 +135,7 @@ class FlowReader:
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 segment_ids.append(segment_id)
-                trajectory_id = segment['traj_id']
+                trajectory_id = segment['file_traj_id']
                 trajectory = trajectory_dict.get(trajectory_id)
                 if trajectory is not None:
                     trajectory_parent_id = trajectory['parent_id']
@@ -142,7 +143,6 @@ class FlowReader:
                     trajectory_ids.append(trajectory_parent_id)
                 # Some trajectories' parents don't appear in the main trajectories
                 # list, but need to be seen by the driver. Add them here explicitly.
-
         truth_dict['segment_ids'] = segment_ids
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 
@@ -173,7 +173,7 @@ class FlowReader:
                                                     self._trajectories)
         event_trajectory_ids = truth_ids_dict['trajectory_ids']
         trajectories_array = np.array(self._trajectories)
-        result.trajectories = trajectories_array[np.isin(trajectories_array['traj_id'], event_trajectory_ids)]
+        result.trajectories = trajectories_array[np.isin(trajectories_array['file_traj_id'], event_trajectory_ids)]
 
         event_segment_ids = truth_ids_dict['segment_ids']
         segments_array = np.array(self._segments)
