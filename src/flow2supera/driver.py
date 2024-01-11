@@ -315,25 +315,25 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
                     else:
                         print("    WARNING: UNEXPECTED CASE for IONIZATION ")
-                        print("      PDG",pdg_code,
-                              "TrackId",edepsim_part['trackID'],
-                              "Kinetic Energy",ke,
-                              "Parent PDG",supera_part.parent_pdg ,
-                              "Parent TrackId",edepsim_part['parentID'],
-                              "G4ProcessType",g4type_main ,
-                              "SubProcessType",g4type_sub)
+                        # print("      PDG",pdg_code,
+                        #       "TrackId",edepsim_part['trackID'],
+                        #       "Kinetic Energy",ke,
+                        #       "Parent PDG",supera_part.parent_pdg ,
+                        #       "Parent TrackId",edepsim_part['parentID'],
+                        #       "G4ProcessType",g4type_main ,
+                        #       "SubProcessType",g4type_sub)
                         supera_part.type = supera.kIonization
                 #elif g4type_sub == 151:
 
                 else:
                     print("    WARNING: UNEXPECTED EM SubType ")
-                    print("      PDG",pdg_code,
-                          "TrackId",edepsim_part['trackID'],
-                          "Kinetic Energy",ke,
-                          "Parent PDG",supera_part.parent_pdg ,
-                          "Parent TrackId",edepsim_part['parentID'],
-                          "G4ProcessType",g4type_main ,
-                          "SubProcessType",g4type_sub)
+                    # print("      PDG",pdg_code,
+                    #       "TrackId",edepsim_part['trackID'],
+                    #       "Kinetic Energy",ke,
+                    #       "Parent PDG",supera_part.parent_pdg ,
+                    #       "Parent TrackId",edepsim_part['parentID'],
+                    #       "G4ProcessType",g4type_main ,
+                    #       "SubProcessType",g4type_sub)
                     raise ValueError
                     
             elif g4type_main == TG4TrajectoryPoint.G4ProcessType.kProcessDecay:
@@ -347,13 +347,13 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             
             else:
                 print("    WARNING: Guessing the shower type as", "Compton" if ke < self._electron_energy_threshold else "OtherShower")
-                print("      PDG",pdg_code,
-                      "TrackId",edepsim_part['trackID'],
-                      "Kinetic Energy",ke,
-                      "Parent PDG",supera_part.parent_pdg ,
-                      "Parent TrackId",edepsim_part['parentID'],
-                      "G4ProcessType",g4type_main ,
-                      "SubProcessType",g4type_sub)
+                # print("      PDG",pdg_code,
+                #       "TrackId",edepsim_part['trackID'],
+                #       "Kinetic Energy",ke,
+                #       "Parent PDG",supera_part.parent_pdg ,
+                #       "Parent TrackId",edepsim_part['parentID'],
+                #       "G4ProcessType",g4type_main ,
+                #       "SubProcessType",g4type_sub)
 
                 if ke < self._electron_energy_threshold:
                     supera_part.type = supera.kCompton
