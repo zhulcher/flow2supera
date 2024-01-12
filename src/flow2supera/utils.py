@@ -200,11 +200,13 @@ def run_supera(out_file='larcv.root',
             logger['time_event'   ].append(time_event)
 
     writer.finalize()
-
+     
     if save_log:
         np.savez('log_flow2supera.npz',**logger)
 
-    print("done")   
+    end_time = time.time()
+    
+    print("Total processing time: ", end_time-start_time)
 
 
 

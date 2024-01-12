@@ -115,7 +115,7 @@ class FlowReader:
 
         
     # To truth associations go as hits -> segments -> trajectories
-    
+  
     def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
         '''
         The Driver class needs to know the number of event trajectories in advance.
@@ -129,6 +129,7 @@ class FlowReader:
         trajectory_dict = {traj['file_traj_id']: traj for traj in trajectories}
         segment_ids = []
         trajectory_ids = []
+
         for i_bt, backtracked_hit in enumerate(backtracked_hits):
             for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
@@ -137,10 +138,12 @@ class FlowReader:
                 segment_ids.append(segment_id)
                 trajectory_id = segment['file_traj_id']
                 trajectory = trajectory_dict.get(trajectory_id)
-                if trajectory is not None:
+                while trajectory is not None:
                     trajectory_parent_id = trajectory['parent_id']
+                    trajectory_parent = trajectory_dict.get(trajectory_parent_id)
                     trajectory_ids.append(trajectory_id)
                     trajectory_ids.append(trajectory_parent_id)
+                    trajectory = trajectory_parent
                 # Some trajectories' parents don't appear in the main trajectories
                 # list, but need to be seen by the driver. Add them here explicitly.
         truth_dict['segment_ids'] = segment_ids
