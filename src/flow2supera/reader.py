@@ -163,7 +163,7 @@ class FlowReader:
         result.event_id = self._event_ids[event_index]
 
 
-        result.t0 = self._event_t0s[result.event_id]
+        result.t0 = self._event_t0s[result.event_id]*1e-7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
 
         result.hit_indices = self._event_hit_indices[result.event_id]
         hit_start_index = self._event_hit_indices[result.event_id][0]
