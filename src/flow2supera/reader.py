@@ -126,26 +126,35 @@ class FlowReader:
             'segment_ids': [],
             'trajectory_ids': [],
         }
-        trajectory_dict = {traj['file_traj_id']: traj for traj in trajectories}
+
+        trajectory_dict = {(traj['traj_id'], traj['event_id'], traj['vertex_id']): traj for traj in trajectories} #use all three to map the correct parent trajectory as 'parent_id' is the 'traj_id' which is not unique
+
         segment_ids = []
         trajectory_ids = []
-
-        for i_bt, backtracked_hit in enumerate(backtracked_hits):
+        for backtracked_hit in backtracked_hits:
             for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
+
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 segment_ids.append(segment_id)
-                trajectory_id = segment['file_traj_id']
-                trajectory = trajectory_dict.get(trajectory_id)
+
+                traj_id = segment['traj_id']
+                event_id = segment['event_id']  
+                vertex_id = segment['vertex_id']  
+
+                trajectory_key = (traj_id, event_id, vertex_id)
+                trajectory = trajectory_dict.get(trajectory_key)
                 while trajectory is not None:
-                    trajectory_parent_id = trajectory['parent_id']
-                    trajectory_parent = trajectory_dict.get(trajectory_parent_id)
-                    trajectory_ids.append(trajectory_id)
-                    trajectory_ids.append(trajectory_parent_id)
+                    trajectory_ids.append(trajectory['file_traj_id'])
+                    trajectory_parent_id = trajectory['parent_id'] 
+                    if(trajectory_parent_id < 0): break #if <0, it is the parent
+                    trajectory_parent_key = (trajectory_parent_id, event_id, vertex_id)
+                    trajectory_parent = trajectory_dict.get(trajectory_parent_key)
                     trajectory = trajectory_parent
                 # Some trajectories' parents don't appear in the main trajectories
                 # list, but need to be seen by the driver. Add them here explicitly.
+                
         truth_dict['segment_ids'] = segment_ids
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 

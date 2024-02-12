@@ -148,7 +148,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             part_input = supera.ParticleInput()
 
             part_input.valid = True
-            part_input.part  = self.TrajectoryToParticle(traj)
+            part_input.part  = self.TrajectoryToParticle(traj, data.trajectories)
             part_input.part.id = supera_event.size()
             if self.GetLogger().verbose():
                 if verbose:
@@ -213,7 +213,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         return supera_event
 
-    def TrajectoryToParticle(self, trajectory):
+    def TrajectoryToParticle(self, trajectory, trajectories):
         ### What we have access to in new flow format: ###
         # ('event_id', 'vertex_id', 'file_traj_id', 'traj_id', 'parent_id', 'E_start', 'pxyz_start', 
         # 'xyz_start', 't_start', 'E_end', 'pxyz_end', 'xyz_end', 't_end', 'pdg_id', 
@@ -254,7 +254,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         traj_parent_id = trajectory['parent_id']
         # Trajectory ID of -1 corresponds to a primary particle
         if traj_parent_id == -1: p.parent_trackid = p.trackid
-        else:                    p.parent_trackid = int(trajectory['parent_id'])
+        else: #there is probably a better way to do this
+            for traj in trajectories:
+                if traj['traj_id'] == int(trajectory['parent_id']) and traj['event_id'] == int(trajectory['event_id']) and traj['vertex_id'] == int(trajectory['vertex_id']):
+                    p.parent_trackid = int(traj['file_traj_id'])
         
         if supera.kINVALID_TRACKID in [p.trackid, p.parent_trackid]:
             print('Unexpected to have an invalid track ID', p.trackid,
