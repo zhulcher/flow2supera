@@ -232,6 +232,9 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
+        p.end_px = trajectory['pxyz_end'][0] 
+        p.end_py = trajectory['pxyz_end'][1] 
+        p.end_pz = trajectory['pxyz_end'][2]
         p.energy_init = trajectory['E_start']
         #This is equivalent to np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
         #                        pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
