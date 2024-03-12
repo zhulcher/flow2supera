@@ -135,9 +135,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         #Note: traj_id is not unique for the file due to merging of flow files, so use 'file_traj_id'
         #max_trajectory_id = data.trajectories['file_traj_id'].max()
-        if len(data.trajectories['file_traj_id'])==0: return
-        max_trajectory_id = data.trajectories['file_traj_id'].max()
-        max_segment_id = data.segments['file_traj_id'].max()
+        max_trajectory_id = max(data.trajectories['file_traj_id'],default=-1)
+        # max_segment_id = data.segments['file_traj_id'].max()
         if verbose: print('Max trajectory ID:', max_trajectory_id)
 
         # When we start constructing Supera::EDeps, we'll need a map from the local 

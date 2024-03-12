@@ -136,9 +136,6 @@ def run_supera(out_file='larcv.root',
         time_convert = time.time() - t1
 
         t2 = time.time()
-        if EventInput is None:
-            print("EVENT SKIPPED BECAUSE EMPTY")
-            continue
         driver.GenerateImageMeta(EventInput)
         driver.GenerateLabel(EventInput) 
         time_generate = time.time() - t2
