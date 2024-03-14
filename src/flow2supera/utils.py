@@ -6,7 +6,7 @@ import time
 import flow2supera
 import argparse
 import ROOT
-from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
+from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
 
@@ -84,8 +84,10 @@ def run_supera(out_file='larcv.root',
     start_time = time.time()
 
     writer = get_iomanager(out_file)
+   
     driver = get_flow2supera(config_key)
-    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
+    reader = flow2supera.reader.FlowChargeReader(driver.parser_run_config(), in_file)
+    neutrino_info = flow2supera.reader.FlowNeutrinoReader(driver.parser_run_config(), in_file)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
@@ -198,9 +200,47 @@ def run_supera(out_file='larcv.root',
             logger['time_generate'].append(time_generate)
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
+  
 
+    print("----------------Processing neutrino interactions----------------")
+    
+ 
+    for entry in range(len(neutrino_info)):
+
+        t0 = time.time()
+        input_neutrino_data = neutrino_info.GetNeutrino(entry)
+
+        time_read = time.time() - t0
+        
+        neutrino_data = larcv_neutrino(input_neutrino_data)
+
+
+        # Perform an integrity check
+        if save_log:
+            log_supera_integrity_check(input_neutrino_data, driver, logger, verbose)
+
+        # Start data store process
+        t3 = time.time()
+
+        neutrino = writer.get_data("neutrino", "mctruth")
+
+        neutrino.append(neutrino_data) 
+            
+        writer.set_id(0, 0, int(input_neutrino_data.id))
+        writer.save_entry()
+        time_store = time.time() - t3
+
+        time_event = time.time() - t0
+
+
+        if save_log:
+            logger['neutrino_time_read'    ].append(time_read)
+            logger['neutrino_time_store'   ].append(time_store)
+            logger['neutrino_time_event'   ].append(time_event)
+            
     writer.finalize()
-     
+
+    
     if save_log:
         np.savez('log_flow2supera.npz',**logger)
 
