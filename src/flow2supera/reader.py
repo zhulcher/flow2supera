@@ -250,7 +250,7 @@ class FlowNeutrinoReader:
         nu_result.id = event_index
         
         ixn = self._ixns[event_index]     
-        nu_result.gen_id = int(ixn['vertex_id']) 
+        nu_result.interaction_id = int(ixn['vertex_id']) 
         nu_result.target = int(ixn['target'])
         nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
         nu_result.pdg_code = int(ixn['nu_pdg'])
