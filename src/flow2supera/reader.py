@@ -268,7 +268,7 @@ class FlowNeutrinoReader:
         nu_result.lepton_p = ixn['lep_mom']
         if(ixn['isCC']): nu_result.current_type = 0
         else: nu_result.current_type = 1
-        nu_result.interaction_mode = ixn['reaction']
+        nu_result.interaction_mode = int(ixn['reaction'])
             
         return nu_result  
 
