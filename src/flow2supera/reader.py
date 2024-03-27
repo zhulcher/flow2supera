@@ -84,7 +84,7 @@ class FlowReader:
             events = flow_manager[events_path]
             events_data = events['data']
             self._event_ids = events_data['id']
-            self._event_t0s = events_data['ts_start']
+            self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[calib_prompt_hits_path]
             self._backtracked_hits = flow_manager[backtracked_hits_path]
