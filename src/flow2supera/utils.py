@@ -84,7 +84,7 @@ def run_supera(out_file='larcv.root',
     start_time = time.time()
 
     writer = get_iomanager(out_file)
-   
+  
     driver = get_flow2supera(config_key)
     reader = flow2supera.reader.FlowChargeReader(driver.parser_run_config(), in_file)
     neutrino_info = flow2supera.reader.FlowNeutrinoReader(driver.parser_run_config(), in_file)
@@ -110,7 +110,8 @@ def run_supera(out_file='larcv.root',
         for key in LOG_KEYS:
             logger[key]=[]
         driver.log(logger)
-        
+    
+
     print("----------------Processing charge events----------------")
     for entry in range(len(reader)):
 
@@ -200,11 +201,14 @@ def run_supera(out_file='larcv.root',
             logger['time_generate'].append(time_generate)
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
-  
+    
+   
 
     print("----------------Processing neutrino interactions----------------")
     
- 
+
+    
+
     for entry in range(len(neutrino_info)):
 
         t0 = time.time()
@@ -221,13 +225,13 @@ def run_supera(out_file='larcv.root',
 
         # Start data store process
         t3 = time.time()
-
         neutrino = writer.get_data("neutrino", "mctruth")
 
         neutrino.append(neutrino_data) 
-            
-        writer.set_id(0, 0, int(input_neutrino_data.id))
-        writer.save_entry()
+                
+        writer.save_entry("neutrino", "mctruth")
+
+        
         time_store = time.time() - t3
 
         time_event = time.time() - t0
@@ -238,6 +242,7 @@ def run_supera(out_file='larcv.root',
             logger['neutrino_time_store'   ].append(time_store)
             logger['neutrino_time_event'   ].append(time_event)
             
+
     writer.finalize()
 
     
@@ -246,7 +251,7 @@ def run_supera(out_file='larcv.root',
 
     end_time = time.time()
     
-    print("Total processing time: ", end_time-start_time)
+    print("Total processing time in s: ", end_time-start_time)
 
 
 
