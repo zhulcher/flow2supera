@@ -144,11 +144,17 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         # EDeps to the right pcloud. 
         # TODO This will get enormous for large trajectory IDs. How should we handle this?
         self._trajectory_id_to_index.resize(int(max_trajectory_id + 1), supera.kINVALID_INDEX)
+        trajectories_dict = {}
         for traj in data.trajectories:
+            key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
+            trajectories_dict[key] = int(traj['file_traj_id'])
+            
+        for traj in data.trajectories:
+            
             part_input = supera.ParticleInput()
 
             part_input.valid = True
-            part_input.part  = self.TrajectoryToParticle(traj, data.trajectories)
+            part_input.part  = self.TrajectoryToParticle(traj, trajectories_dict)
             part_input.part.id = supera_event.size()
             if self.GetLogger().verbose():
                 if verbose:
@@ -213,7 +219,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
         return supera_event
 
-    def TrajectoryToParticle(self, trajectory, trajectories):
+    def TrajectoryToParticle(self, trajectory, trajectories_dict):
         ### What we have access to in new flow format: ###
         # ('event_id', 'vertex_id', 'file_traj_id', 'traj_id', 'parent_id', 'E_start', 'pxyz_start', 
         # 'xyz_start', 't_start', 'E_end', 'pxyz_end', 'xyz_end', 't_end', 'pdg_id', 
@@ -232,11 +238,11 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
         p.pz = trajectory['pxyz_start'][2]
-        p.end_px = trajectory['pxyz_end'][0] 
-        p.end_py = trajectory['pxyz_end'][1] 
+        p.end_px = trajectory['pxyz_end'][0]
+        p.end_py = trajectory['pxyz_end'][1]
         p.end_pz = trajectory['pxyz_end'][2]
         p.energy_init = trajectory['E_start']
-        p.dist_travel = trajectory['dist_travel']
+        #p.dist_travel = trajectory['dist_travel']
         #This is equivalent to np.sqrt(pow(flow2supera.pdg2mass.pdg2mass(p.pdg),2) + 
         #                        pow(p.px,2) + pow(p.py,2) + pow(p.pz,2))
         # TODO Is this correct? Shouldn't the vertex be the interaction vertex?
@@ -255,10 +261,14 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         traj_parent_id = trajectory['parent_id']
         # Trajectory ID of -1 corresponds to a primary particle
         if traj_parent_id == -1: p.parent_trackid = p.trackid
-        else: #there is probably a better way to do this
-            for traj in trajectories:
-                if traj['traj_id'] == int(trajectory['parent_id']) and traj['event_id'] == int(trajectory['event_id']) and traj['vertex_id'] == int(trajectory['vertex_id']):
-                    p.parent_trackid = int(traj['file_traj_id'])
+        else: 
+            key = (int(trajectory['parent_id']), int(trajectory['event_id']), int(trajectory['vertex_id']))
+            if key in trajectories_dict:
+                p.parent_trackid = trajectories_dict[key]
+            else:
+                print("Parent trajectory not found!!!")
+                raise ValueError
+            
         
         if supera.kINVALID_TRACKID in [p.trackid, p.parent_trackid]:
             print('Unexpected to have an invalid track ID', p.trackid,

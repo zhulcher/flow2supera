@@ -1,17 +1,19 @@
 import h5py 
 import h5flow
 import numpy as np
+from ROOT import supera
 import cppyy
 
 class InputEvent:
     event_id = -1
+    true_event_id = -1
     segments = None
     hit_indices = None
     hits = None
     backtracked_hits = None
     calib_final_hits  = None
     trajectories = None
-    interactions = None
+    interactions = []
     t0 = -1
     segment_index_min = -1
     event_separator = ''
@@ -112,7 +114,34 @@ class FlowReader:
         if not self._is_sim:
             print('Currently only simulation is supoprted')
             raise NotImplementedError
-
+    
+    def GetNeutrinoIxn(self, ixn, ixn_idx):
+        
+        nu_result = supera.Neutrino()
+        
+        nu_result.id = int(ixn_idx)
+        nu_result.interaction_id = int(ixn['vertex_id']) 
+        nu_result.target = int(ixn['target'])
+        nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
+        nu_result.pdg_code = int(ixn['nu_pdg'])
+        nu_result.lepton_pdg_code = int(ixn['lep_pdg'])  
+        nu_result.energy_init = ixn['Enu']
+        nu_result.theta = ixn['lep_ang']
+        nu_result.momentum_transfer =  ixn['Q2']
+        nu_result.momentum_transfer_mag =  ixn['q3']
+        nu_result.energy_transfer =  ixn['q0']
+        nu_result.bjorken_x = ixn['x']
+        nu_result.inelasticity = ixn['y']
+        nu_result.px = ixn['nu_4mom'][0]
+        nu_result.py = ixn['nu_4mom'][1]       
+        nu_result.pz = ixn['nu_4mom'][2]
+        nu_result.lepton_p = ixn['lep_mom']
+        if(ixn['isCC']): nu_result.current_type = 0
+        else: nu_result.current_type = 1
+        nu_result.interaction_mode = int(ixn['reaction'])
+        nu_result.interaction_type = int(ixn['reaction'])   
+        
+        return nu_result  
         
     # To truth associations go as hits -> segments -> trajectories
   
@@ -131,6 +160,7 @@ class FlowReader:
 
         segment_ids = []
         trajectory_ids = []
+        
         for backtracked_hit in backtracked_hits:
             for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
@@ -142,7 +172,7 @@ class FlowReader:
                 traj_id = segment['traj_id']
                 event_id = segment['event_id']  
                 vertex_id = segment['vertex_id']  
-
+                
                 trajectory_key = (traj_id, event_id, vertex_id)
                 trajectory = trajectory_dict.get(trajectory_key)
                 while trajectory is not None:
@@ -159,7 +189,7 @@ class FlowReader:
         truth_dict['trajectory_ids'] = sorted(trajectory_ids)
 
         return truth_dict
-
+    
     def GetEvent(self, event_index):
         
         if event_index >= len(self._event_ids):
@@ -191,9 +221,16 @@ class FlowReader:
         segments_array = np.array(self._segments)
         result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
+        result.interactions = []
+        if len(result.segments) != 0:
+            result.true_event_id = result.segments[0]['event_id']        
+            interactions_array  = np.array(self._interactions)
+            event_interactions = interactions_array[interactions_array['event_id'] == result.true_event_id]
 
-        result.interactions = self._interactions
-        
+            for ixn_idx, ixn in enumerate(event_interactions):
+                supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
+                result.interactions.append(supera_nu)  
+            
         return result  
  
 
@@ -201,6 +238,7 @@ class FlowReader:
     def EventDump(self, input_event):
         print('-----------EVENT DUMP-----------------')
         print('Event ID {}'.format(input_event.event_id))
+        print('True event ID {}'.format(input_event.true_event_id))
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
         print('Backtracked hits len:', len(input_event.backtracked_hits))
@@ -208,4 +246,6 @@ class FlowReader:
         print('segments in this event:', len(input_event.segments))
         print('trajectories in this event:', len(input_event.trajectories))
         print('interactions in this event:', len(input_event.interactions))
+
+
 

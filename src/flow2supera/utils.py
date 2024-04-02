@@ -6,7 +6,7 @@ import time
 import flow2supera
 import argparse
 import ROOT
-from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle
+from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
 
@@ -84,6 +84,7 @@ def run_supera(out_file='larcv.root',
     start_time = time.time()
 
     writer = get_iomanager(out_file)
+  
     driver = get_flow2supera(config_key)
     reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
 
@@ -108,7 +109,8 @@ def run_supera(out_file='larcv.root',
         for key in LOG_KEYS:
             logger[key]=[]
         driver.log(logger)
-        
+    
+
     print("----------------Processing charge events----------------")
     for entry in range(len(reader)):
 
@@ -170,12 +172,17 @@ def run_supera(out_file='larcv.root',
         larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
 
         particle = writer.get_data("particle", "pcluster")
-    
         for p in result._particles:
             if not p.valid:
                 continue
             larp = larcv_particle(p)
             particle.append(larp)
+            
+        #Fill mc truth neutrino interactions
+        interaction = writer.get_data("neutrino", "mc_truth")
+        for ixn in input_data.interactions:
+            larn = larcv_neutrino(ixn)
+            interaction.append(larn)
             
         #propagating trigger info
         trigger = writer.get_data("trigger", "base")
@@ -198,15 +205,19 @@ def run_supera(out_file='larcv.root',
             logger['time_generate'].append(time_generate)
             logger['time_store'   ].append(time_store)
             logger['time_event'   ].append(time_event)
+    
+   
 
+    
     writer.finalize()
-     
+
+    
     if save_log:
         np.savez('log_flow2supera.npz',**logger)
 
     end_time = time.time()
     
-    print("Total processing time: ", end_time-start_time)
+    print("Total processing time in s: ", end_time-start_time)
 
 
 
