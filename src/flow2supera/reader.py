@@ -86,7 +86,7 @@ class FlowReader:
             events = flow_manager[events_path]
             events_data = events['data']
             self._event_ids = events_data['id']
-            self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7
+            self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[calib_prompt_hits_path]
             self._backtracked_hits = flow_manager[backtracked_hits_path]
@@ -202,7 +202,7 @@ class FlowReader:
         result.event_id = self._event_ids[event_index]
 
 
-        result.t0 = self._event_t0s[result.event_id]*1e-7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
+        result.t0 = self._event_t0s[result.event_id] 
 
         result.hit_indices = self._event_hit_indices[result.event_id]
         hit_start_index = self._event_hit_indices[result.event_id][0]
