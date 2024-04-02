@@ -189,17 +189,6 @@ class FlowReader:
 
         return truth_dict
     
-    #Get true event id corresponding to the "reco" charge event using backtracked hits and segments
-    def GetTrueEventID(self, backtracked_hits, segments):
-        true_event_id = -1
-        for hit in backtracked_hits:
-            if abs(hit['fraction'][contrib]) > 0: break # as long as we find a valid contribution, we can get an event id as all of these hits should belong to one true event
-            segment_id = backtracked_hit['segment_id'][contrib]
-            segment = segments[segment_id]
-            true_event_id = segment['event_id']
-
-        return true_event_id
-        
     def GetEvent(self, event_index):
         
         if event_index >= len(self._event_ids):
