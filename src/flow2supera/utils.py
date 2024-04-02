@@ -86,8 +86,7 @@ def run_supera(out_file='larcv.root',
     writer = get_iomanager(out_file)
   
     driver = get_flow2supera(config_key)
-    reader = flow2supera.reader.FlowChargeReader(driver.parser_run_config(), in_file)
-    neutrino_info = flow2supera.reader.FlowNeutrinoReader(driver.parser_run_config(), in_file)
+    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
@@ -173,12 +172,17 @@ def run_supera(out_file='larcv.root',
         larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
 
         particle = writer.get_data("particle", "pcluster")
-    
         for p in result._particles:
             if not p.valid:
                 continue
             larp = larcv_particle(p)
             particle.append(larp)
+            
+        #Fill mc truth neutrino interactions
+        interaction = writer.get_data("neutrino", "mc_truth")
+        for ixn in input_data.interactions:
+            larn = larcv_neutrino(ixn)
+            interaction.append(larn)
             
         #propagating trigger info
         trigger = writer.get_data("trigger", "base")
@@ -204,45 +208,7 @@ def run_supera(out_file='larcv.root',
     
    
 
-    print("----------------Processing neutrino interactions----------------")
     
-
-    
-
-    for entry in range(len(neutrino_info)):
-
-        t0 = time.time()
-        input_neutrino_data = neutrino_info.GetNeutrino(entry)
-
-        time_read = time.time() - t0
-        
-        neutrino_data = larcv_neutrino(input_neutrino_data)
-
-
-        # Perform an integrity check
-        if save_log:
-            log_supera_integrity_check(input_neutrino_data, driver, logger, verbose)
-
-        # Start data store process
-        t3 = time.time()
-        neutrino = writer.get_data("neutrino", "mctruth")
-
-        neutrino.append(neutrino_data) 
-                
-        writer.save_entry("neutrino", "mctruth")
-
-        
-        time_store = time.time() - t3
-
-        time_event = time.time() - t0
-
-
-        if save_log:
-            logger['neutrino_time_read'    ].append(time_read)
-            logger['neutrino_time_store'   ].append(time_store)
-            logger['neutrino_time_event'   ].append(time_event)
-            
-
     writer.finalize()
 
     
