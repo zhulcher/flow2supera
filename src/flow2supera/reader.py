@@ -139,7 +139,8 @@ class FlowReader:
         if(ixn['isCC']): nu_result.current_type = 0
         else: nu_result.current_type = 1
         nu_result.interaction_mode = int(ixn['reaction'])
-            
+        nu_result.interaction_type = int(ixn['reaction'])   
+        
         return nu_result  
         
     # To truth associations go as hits -> segments -> trajectories
