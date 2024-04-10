@@ -275,8 +275,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                   'or parent track ID', p.parent_trackid)
             raise ValueError
 
-        # TODO Threw this in as a stopgap, what do we actually do?
-        p.ancestor_pdg = 0
+
         
         return p
         
