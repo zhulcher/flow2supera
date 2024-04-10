@@ -156,37 +156,46 @@ class FlowReader:
             'trajectory_ids': [],
         }
 
-        trajectory_dict = {(traj['traj_id'], traj['event_id'], traj['vertex_id']): traj for traj in trajectories} #use all three to map the correct parent trajectory as 'parent_id' is the 'traj_id' which is not unique
-
         segment_ids = []
         trajectory_ids = []
-        
+        v_dictionary = {}
         for backtracked_hit in backtracked_hits:
             for contrib in range(len(backtracked_hit['fraction'])):
                 if abs(backtracked_hit['fraction'][contrib]) == 0: break
-
                 segment_id = backtracked_hit['segment_id'][contrib]
                 segment = segments[segment_id]
                 segment_ids.append(segment_id)
-
                 traj_id = segment['traj_id']
-                event_id = segment['event_id']  
-                vertex_id = segment['vertex_id']  
+                vertex_id = segment['vertex_id']
+                event_id = segment['event_id']
                 
-                trajectory_key = (traj_id, event_id, vertex_id)
-                trajectory = trajectory_dict.get(trajectory_key)
+                #filter the trajectories based on the vertex id and map the traj ids
+                if not (vertex_id in v_dictionary):
+                    mask = trajectories['vertex_id'] == vertex_id
+                    reduced_trajectories = trajectories[mask]
+                    tmp_vtx_id = vertex_id
+                    index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
+                    for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
+                        index_array[t_id] = tidx
+                    v_dictionary[vertex_id] = (index_array,reduced_trajectories)
+                index_array,reduced_trajectories = v_dictionary[vertex_id]
+                trajectory = reduced_trajectories[index_array[traj_id]]
+             
+                #check consistency of event id
+                if (trajectory['event_id'] != event_id): 
+                    print("Event IDs of trajectory and segment are different")
+                    raise ValueError
+                    
                 while trajectory is not None:
                     trajectory_ids.append(trajectory['file_traj_id'])
+                    # Some trajectories' parents don't appear in this loop, but need to be seen by the driver. Add them here explicitly.
                     trajectory_parent_id = trajectory['parent_id'] 
                     if(trajectory_parent_id < 0): break #if <0, it is the parent
-                    trajectory_parent_key = (trajectory_parent_id, event_id, vertex_id)
-                    trajectory_parent = trajectory_dict.get(trajectory_parent_key)
-                    trajectory = trajectory_parent
-                # Some trajectories' parents don't appear in the main trajectories
-                # list, but need to be seen by the driver. Add them here explicitly.
-                
+                    trajectory = reduced_trajectories[index_array[trajectory_parent_id]] 
+                    
+
         truth_dict['segment_ids'] = segment_ids
-        truth_dict['trajectory_ids'] = sorted(trajectory_ids)
+        truth_dict['trajectory_ids'] = trajectory_ids
 
         return truth_dict
     
