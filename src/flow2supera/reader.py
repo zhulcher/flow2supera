@@ -51,15 +51,6 @@ class FlowReader:
             yield self.GetEvent(entry)
 
     def ReadFile(self, input_files, verbose=False):
-        # event_ids = []
-        # calib_final_hits  = []
-        # event_hit_indices = []
-        # hits = []
-        # backtracked_hits = []
-        # segments = []
-        # trajectories = []
-        # event_trajectories = []
-        # t0s = []
 
         print('Reading input file...')
 
@@ -173,7 +164,6 @@ class FlowReader:
                 if not (vertex_id in v_dictionary):
                     mask = (trajectories['vertex_id'] == vertex_id)&(trajectories['event_id'] == event_id)
                     reduced_trajectories = trajectories[mask]
-                    # tmp_vtx_id = vertex_id
                     index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
                     for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
                         index_array[t_id] = tidx
