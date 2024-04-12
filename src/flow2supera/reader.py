@@ -51,15 +51,15 @@ class FlowReader:
             yield self.GetEvent(entry)
 
     def ReadFile(self, input_files, verbose=False):
-        event_ids = []
-        calib_final_hits  = []
-        event_hit_indices = []
-        hits = []
-        backtracked_hits = []
-        segments = []
-        trajectories = []
-        event_trajectories = []
-        t0s = []
+        # event_ids = []
+        # calib_final_hits  = []
+        # event_hit_indices = []
+        # hits = []
+        # backtracked_hits = []
+        # segments = []
+        # trajectories = []
+        # event_trajectories = []
+        # t0s = []
 
         print('Reading input file...')
 
@@ -122,7 +122,7 @@ class FlowReader:
         nu_result.id = int(ixn_idx)
         nu_result.interaction_id = int(ixn['vertex_id']) 
         nu_result.target = int(ixn['target'])
-        nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
+        nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
         nu_result.pdg_code = int(ixn['nu_pdg'])
         nu_result.lepton_pdg_code = int(ixn['lep_pdg'])  
         nu_result.energy_init = ixn['Enu']
@@ -173,7 +173,7 @@ class FlowReader:
                 if not (vertex_id in v_dictionary):
                     mask = trajectories['vertex_id'] == vertex_id
                     reduced_trajectories = trajectories[mask]
-                    tmp_vtx_id = vertex_id
+                    # tmp_vtx_id = vertex_id
                     index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
                     for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
                         index_array[t_id] = tidx
@@ -183,7 +183,7 @@ class FlowReader:
              
                 #check consistency of event id
                 if (trajectory['event_id'] != event_id): 
-                    print("Event IDs of trajectory and segment are different")
+                    print("Event IDs of trajectory and segment are different",trajectory['event_id'],event_id,vertex_id,trajectory['file_traj_id'])
                     raise ValueError
                     
                 while trajectory is not None:
