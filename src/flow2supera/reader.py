@@ -237,6 +237,7 @@ class FlowReader:
             event_interactions = interactions_array[interactions_array['event_id'] == result.true_event_id]
 
             for ixn_idx, ixn in enumerate(event_interactions):
+                if 'target' not in ixn.dtype.fields: continue
                 supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
                 result.interactions.append(supera_nu)  
             
