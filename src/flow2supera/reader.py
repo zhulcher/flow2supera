@@ -161,14 +161,14 @@ class FlowReader:
                 event_id = segment['event_id']
                 
                 #filter the trajectories based on the vertex id and map the traj ids
-                if not (vertex_id in v_dictionary):
+                if not ((event_id,vertex_id) in v_dictionary):
                     mask = (trajectories['vertex_id'] == vertex_id)&(trajectories['event_id'] == event_id)
                     reduced_trajectories = trajectories[mask]
                     index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
                     for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
                         index_array[t_id] = tidx
-                    v_dictionary[vertex_id] = (index_array,reduced_trajectories)
-                index_array,reduced_trajectories = v_dictionary[vertex_id]
+                    v_dictionary[(event_id,vertex_id)] = (index_array,reduced_trajectories)
+                index_array,reduced_trajectories = v_dictionary[(event_id,vertex_id)]
                 trajectory = reduced_trajectories[index_array[traj_id]]
              
                 #check consistency of event id
