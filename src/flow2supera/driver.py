@@ -1,12 +1,10 @@
 import time
-import edep2supera, ROOT
+import edep2supera
 from ROOT import supera, std, TG4TrajectoryPoint
 import numpy as np
 import LarpixParser
-from LarpixParser import hit_parser as HitParser
 import yaml
 from yaml import Loader
-import flow2supera
 
 class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 

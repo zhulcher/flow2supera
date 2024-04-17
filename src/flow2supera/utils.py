@@ -86,7 +86,7 @@ def run_supera(out_file='larcv.root',
     writer = get_iomanager(out_file)
   
     driver = get_flow2supera(config_key)
-    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file)
+    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file,config_key)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
