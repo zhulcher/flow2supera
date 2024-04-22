@@ -6,9 +6,31 @@ import time
 import flow2supera
 import argparse
 import ROOT
+from larcv import larcv
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
+
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
+
+def get_iomanager(outname):
+    import tempfile
+    cfg='''                                                                                                                                          
+IOManager: {                                                                                                                                         
+  Verbosity:   2                                                                                                                                     
+  Name:        "IOManager"                                                                                                                           
+  IOMode:      1                                                                                                                                     
+  OutFileName: "%s"                                                                                                                                  
+}                                                                                                                                                    
+'''
+    #f=open('tmp.cfg','w')                                                                                                                           
+    f=tempfile.NamedTemporaryFile(mode='w')
+    f.write(cfg % outname)
+    f.flush()
+    o = larcv.IOManager(f.name)
+    o.initialize()
+    f.close()
+    return o
+
 
 def get_flow2supera(config_key):
 
@@ -86,7 +108,7 @@ def run_supera(out_file='larcv.root',
     writer = get_iomanager(out_file)
   
     driver = get_flow2supera(config_key)
-    reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file,config_key)
+    reader = flow2supera.reader.InputReader(driver.parser_run_config(), in_file,config_key)
 
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
@@ -125,7 +147,7 @@ def run_supera(out_file='larcv.root',
         print(f'Processing Entry {entry}')
 
         t0 = time.time()
-        input_data = reader.GetEvent(entry)
+        input_data = reader.GetEntry(entry)
         reader.EventDump(input_data)
         #is_good_event = reader.CheckIntegrity(input_data, ignore_bad_association)
         #if not is_good_event:
@@ -144,7 +166,7 @@ def run_supera(out_file='larcv.root',
 
         # Perform an integrity check
         if save_log:
-            log_supera_integrity_check(EventInput, driver, logger, verbose)
+            log_supera_integrity_check(EventInput, driver, logger, verbose=False)
 
         # Start data store process
         t3 = time.time()
@@ -155,9 +177,14 @@ def run_supera(out_file='larcv.root',
         result.FillTensorEnergy(id_v, value_v)
         larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
         
-        tensor_packets = writer.get_data("sparse3d", "packets")
+        tensor_hits = writer.get_data("sparse3d", "hits")
         driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
-        larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
+        larcv.as_event_sparse3d(tensor_hits, meta, id_v, value_v)
+
+        # Check the input image and label image match in the voxel set
+        ids_input = np.array([v.id() for v in tensor_energy.as_vector()])
+        ids_label = np.array([v.id() for v in tensor_hits.as_vector()])
+        assert np.allclose(ids_input,ids_label), '[SuperaDriver] ERROR: the label and input data has different set of voxels'
 
         tensor_semantic = writer.get_data("sparse3d", "pcluster_semantics")
         result.FillTensorSemantic(id_v, value_v)
@@ -177,10 +204,12 @@ def run_supera(out_file='larcv.root',
                 continue
             larp = larcv_particle(p)
             particle.append(larp)
-            
+
         #Fill mc truth neutrino interactions
         interaction = writer.get_data("neutrino", "mc_truth")
         for ixn in input_data.interactions:
+            if isinstance(ixn,np.void):
+                continue
             larn = larcv_neutrino(ixn)
             interaction.append(larn)
             
