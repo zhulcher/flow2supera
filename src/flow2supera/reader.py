@@ -159,9 +159,20 @@ class InputReader:
 
     def GetEventIDFromSegments(self, backtracked_hits, segments):
 
-        seg_ids = np.concatenate([bhit['segment_id'][bhit['fraction']!=0.] for bhit in backtracked_hits])
+        
+        try:
+            seg_ids = np.concatenate([bhit['segment_id'][bhit['fraction']!=0.] for bhit in backtracked_hits])
 
-        return np.unique(segments[seg_ids]['event_id'])
+            return np.unique(segments[seg_ids]['event_id'])
+
+        except ValueError:
+            valid_frac_counts = [(bhit['fraction']!=0.).sum() for bhit in backtracked_hits]
+            if sum(valid_frac_counts) > 0:
+                # case the original error was not due to empty association, re-raise
+                raise
+            print(f'[SuperaDriver] UNEXPECTED: found no hit with any association to the truth hit')
+            return np.array([])
+
   
     def GetEventTruthFromHits(self, backtracked_hits, segments, trajectories):
         '''
@@ -249,6 +260,7 @@ class InputReader:
             return result
 
         assert len(st_event_id)==1, f'Found >1 unique "event_id" from backtracked segments ({st_event_id})'
+
         st_event_id = st_event_id[0]
 
         result.segments = self._segments[self._segments['event_id']==st_event_id]
@@ -289,7 +301,7 @@ class InputReader:
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
         print('Backtracked hits len:', len(input_event.backtracked_hits))
-        print('Reconstructed hits len:', len(input_event.hits.shape))
+        print('Reconstructed hits len:', len(input_event.hits))
         print('segments in this event:', len(input_event.segments))
         print('trajectories in this event:', len(input_event.trajectories))
         print('interactions in this event:', len(input_event.interactions))

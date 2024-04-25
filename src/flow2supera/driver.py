@@ -165,6 +165,9 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             for key in self.LOG_KEYS:
                 self._log[key].append(0)
         supera_event = supera.EventInput()
+
+        assert data.trajectories is not None, '[SuperaDriver] ERROR data.trajectories is None'
+
         supera_event.reserve(len(data.trajectories))
 
         # Assuming your segment IDs are in a dataset named 'segment_ids'

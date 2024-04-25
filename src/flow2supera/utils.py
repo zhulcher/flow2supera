@@ -148,7 +148,13 @@ def run_supera(out_file='larcv.root',
 
         t0 = time.time()
         input_data = reader.GetEntry(entry)
+
+        if input_data.trajectories is None:
+            print(f'[SuperaDriver] WARNING skipping this entry {entry} as it appears to be "empty" (no truth association found, non-unique event id, etc.)')
+            continue
+
         reader.EventDump(input_data)
+
         #is_good_event = reader.CheckIntegrity(input_data, ignore_bad_association)
         #if not is_good_event:
         #    print('[ERROR] Entry', entry, 'is not valid; skipping')
