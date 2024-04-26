@@ -258,10 +258,10 @@ class FlowReader:
     def EventDump(self, input_event):
         print('-----------EVENT DUMP-----------------')
         print('Event ID {}'.format(input_event.event_id))
-        print('True event ID {}'.format(input_event.true_event_id))
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
         if self._is_sim:
+            print('True event ID {}'.format(input_event.true_event_id))
             print('Backtracked hits len:', len(input_event.backtracked_hits))
             print('hits shape:', input_event.hits.shape)
             print('segments in this event:', len(input_event.segments))
