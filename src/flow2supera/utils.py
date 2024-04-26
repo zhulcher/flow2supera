@@ -6,6 +6,8 @@ import time
 import flow2supera
 import argparse
 import ROOT
+import yaml
+from yaml import Loader
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
 #from LarpixParser import event_parser as EventParser
 from larcv import larcv
@@ -81,13 +83,26 @@ def run_supera(out_file='larcv.root',
                ignore_bad_association=True,
                save_log=None):
 
+    is_sim = False
     start_time = time.time()
 
     writer = get_iomanager(out_file)
   
     driver = get_flow2supera(config_key)
     reader = flow2supera.reader.FlowReader(driver.parser_run_config(), in_file,config_key)
-
+    
+    if config_key:
+        if os.path.isfile(config_key):
+            file=config_key
+        else:
+            file=flow2supera.config.get_config(config_key)
+        with open(file,'r') as f:
+            cfg=yaml.load(f.read(),Loader=Loader)
+            if 'Type' in cfg.keys():
+                is_sim=cfg.get('Type')[0]=='sim'
+    
+    
+    
     id_vv = ROOT.std.vector("std::vector<unsigned long>")()
     value_vv = ROOT.std.vector("std::vector<float>")()
 
@@ -123,66 +138,56 @@ def run_supera(out_file='larcv.root',
         num_events -= 1 
 
         print(f'Processing Entry {entry}')
-
-        t0 = time.time()
         input_data = reader.GetEvent(entry)
         reader.EventDump(input_data)
-        #is_good_event = reader.CheckIntegrity(input_data, ignore_bad_association)
-        #if not is_good_event:
-        #    print('[ERROR] Entry', entry, 'is not valid; skipping')
-        #    continue
-        time_read = time.time() - t0
-        
-        t1 = time.time()
-        EventInput = driver.ReadEvent(input_data)
-        time_convert = time.time() - t1
-
-        t2 = time.time()
-        driver.GenerateImageMeta(EventInput)
-        driver.GenerateLabel(EventInput) 
-        time_generate = time.time() - t2
 
         # Perform an integrity check
         if save_log:
             log_supera_integrity_check(EventInput, driver, logger, verbose)
-
-        # Start data store process
-        t3 = time.time()
-        result = driver.Label()
-        meta   = larcv_meta(driver.Meta())
-        
-        tensor_energy = writer.get_data("sparse3d", "pcluster")
-        result.FillTensorEnergy(id_v, value_v)
-        larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
-        
-        tensor_packets = writer.get_data("sparse3d", "packets")
-        driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
-        larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
-
-        tensor_semantic = writer.get_data("sparse3d", "pcluster_semantics")
-        result.FillTensorSemantic(id_v, value_v)
-        larcv.as_event_sparse3d(tensor_semantic,meta, id_v, value_v)
-
-        cluster_energy = writer.get_data("cluster3d", "pcluster")
-        result.FillClustersEnergy(id_vv, value_vv)
-        larcv.as_event_cluster3d(cluster_energy, meta, id_vv, value_vv)
-
-        cluster_dedx = writer.get_data("cluster3d", "pcluster_dedx")
-        result.FillClustersdEdX(id_vv, value_vv)
-        larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
-
-        particle = writer.get_data("particle", "pcluster")
-        for p in result._particles:
-            if not p.valid:
-                continue
-            larp = larcv_particle(p)
-            particle.append(larp)
             
-        #Fill mc truth neutrino interactions
-        interaction = writer.get_data("neutrino", "mc_truth")
-        for ixn in input_data.interactions:
-            larn = larcv_neutrino(ixn)
-            interaction.append(larn)
+        if is_sim:
+            EventInput = driver.ReadEvent(input_data)
+            time_convert = time.time() - t1
+
+            driver.GenerateImageMeta(EventInput)
+
+            driver.GenerateLabel(EventInput) 
+            # Start data store process
+            result = driver.Label()
+            meta   = larcv_meta(driver.Meta())
+        
+            tensor_energy = writer.get_data("sparse3d", "pcluster")
+            result.FillTensorEnergy(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
+        
+            tensor_packets = writer.get_data("sparse3d", "packets")
+            driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
+
+            tensor_semantic = writer.get_data("sparse3d", "pcluster_semantics")
+            result.FillTensorSemantic(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_semantic,meta, id_v, value_v)
+
+            cluster_energy = writer.get_data("cluster3d", "pcluster")
+            result.FillClustersEnergy(id_vv, value_vv)
+            larcv.as_event_cluster3d(cluster_energy, meta, id_vv, value_vv)
+
+            cluster_dedx = writer.get_data("cluster3d", "pcluster_dedx")
+            result.FillClustersdEdX(id_vv, value_vv)
+            larcv.as_event_cluster3d(cluster_dedx, meta, id_vv, value_vv)
+
+            particle = writer.get_data("particle", "pcluster")
+            for p in result._particles:
+                if not p.valid:
+                    continue
+                larp = larcv_particle(p)
+                particle.append(larp)
+            
+            #Fill mc truth neutrino interactions
+            interaction = writer.get_data("neutrino", "mc_truth")
+            for ixn in input_data.interactions:
+                larn = larcv_neutrino(ixn)
+                interaction.append(larn)
             
         #propagating trigger info
         trigger = writer.get_data("trigger", "base")
@@ -193,18 +198,7 @@ def run_supera(out_file='larcv.root',
         # TODO fill the run ID 
         writer.set_id(0, 0, int(input_data.event_id))
         writer.save_entry()
-        time_store = time.time() - t3
 
-        time_event = time.time() - t0
-        print("--- running driver  {:.2e} seconds ---".format(time_event))
-
-        if save_log:
-            logger['event_id'].append(input_data.event_id)
-            logger['time_read'    ].append(time_read)
-            logger['time_convert' ].append(time_convert)
-            logger['time_generate'].append(time_generate)
-            logger['time_store'   ].append(time_store)
-            logger['time_event'   ].append(time_event)
     
    
 
