@@ -12,7 +12,7 @@ DetectorProperties: ''
 ParserRunConfig:
     event_separator: 'eventID'
 ElectronEnergyThreshold: 5
-SimulationType: 'neutrino'
+SimulationType: 'mpvmpr'
 
 BBoxAlgorithm: BBoxInteraction
 BBoxConfig:

@@ -2,7 +2,11 @@ import h5py
 import h5flow
 import numpy as np
 from ROOT import supera
-import cppyy
+from yaml import Loader
+import yaml
+import os
+import flow2supera
+
 
 class InputEvent:
     event_id = -1
@@ -21,7 +25,7 @@ class InputEvent:
 
 class FlowReader:
     
-    def __init__(self, parser_run_config, input_files=None):
+    def __init__(self, parser_run_config, input_files=None,config=None):
         self._input_files = input_files
         if not isinstance(input_files, str):
             raise TypeError('Input file must be a str type')
@@ -37,7 +41,18 @@ class FlowReader:
         self._interactions = None
         self._run_config = parser_run_config
         self._is_sim = False
-
+        self._is_mpvmpr= False
+        if config:
+            if os.path.isfile(config):
+                file=config
+            else:
+               file=flow2supera.config.get_config(config)
+            with open(file,'r') as f:
+                cfg=yaml.load(f.read(),Loader=Loader)
+                if 'SimulationType' in cfg.keys():
+                    self._is_mpvmpr=cfg.get('SimulationType')=='mpvmpr'
+                
+        
         if input_files:
             self.ReadFile(input_files)
 
@@ -51,15 +66,6 @@ class FlowReader:
             yield self.GetEvent(entry)
 
     def ReadFile(self, input_files, verbose=False):
-        event_ids = []
-        calib_final_hits  = []
-        event_hit_indices = []
-        hits = []
-        backtracked_hits = []
-        segments = []
-        trajectories = []
-        event_trajectories = []
-        t0s = []
 
         print('Reading input file...')
 
@@ -122,7 +128,8 @@ class FlowReader:
         nu_result.id = int(ixn_idx)
         nu_result.interaction_id = int(ixn['vertex_id']) 
         nu_result.target = int(ixn['target'])
-        nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
+        nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
+        # nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
         nu_result.pdg_code = int(ixn['nu_pdg'])
         nu_result.lepton_pdg_code = int(ixn['lep_pdg'])  
         nu_result.energy_init = ixn['Enu']
@@ -169,16 +176,29 @@ class FlowReader:
                 vertex_id = segment['vertex_id']
                 event_id = segment['event_id']
                 
-                #filter the trajectories based on the vertex id and map the traj ids
-                if not (vertex_id in v_dictionary):
-                    mask = trajectories['vertex_id'] == vertex_id
-                    reduced_trajectories = trajectories[mask]
-                    tmp_vtx_id = vertex_id
-                    index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
-                    for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
-                        index_array[t_id] = tidx
-                    v_dictionary[vertex_id] = (index_array,reduced_trajectories)
-                index_array,reduced_trajectories = v_dictionary[vertex_id]
+                 #filter the trajectories based on the vertex id and map the traj ids
+                if self._is_mpvmpr:
+                    if not ((event_id,vertex_id) in v_dictionary):
+                        mask = (trajectories['vertex_id'] == vertex_id)&(trajectories['event_id'] == event_id)
+                        reduced_trajectories = trajectories[mask]
+                        index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
+                        for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
+                            index_array[t_id] = tidx
+                        v_dictionary[(event_id,vertex_id)] = (index_array,reduced_trajectories)
+                    index_array,reduced_trajectories = v_dictionary[(event_id,vertex_id)]
+                    
+               
+                if not self._is_mpvmpr:
+                    if not vertex_id in v_dictionary:
+                        mask = (trajectories['vertex_id'] == vertex_id)
+                        reduced_trajectories = trajectories[mask]
+                        index_array = np.full(np.max(reduced_trajectories["traj_id"]) + 1, -1)
+                        for tidx, t_id in enumerate(reduced_trajectories["traj_id"]):
+                            index_array[t_id] = tidx
+                        v_dictionary[vertex_id] = (index_array,reduced_trajectories)
+                    index_array,reduced_trajectories = v_dictionary[vertex_id]
+
+
                 trajectory = reduced_trajectories[index_array[traj_id]]
              
                 #check consistency of event id
@@ -235,10 +255,10 @@ class FlowReader:
             result.true_event_id = result.segments[0]['event_id']        
             interactions_array  = np.array(self._interactions)
             event_interactions = interactions_array[interactions_array['event_id'] == result.true_event_id]
-
-            for ixn_idx, ixn in enumerate(event_interactions):
-                supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
-                result.interactions.append(supera_nu)  
+            if not self._is_mpvmpr:
+                for ixn_idx, ixn in enumerate(event_interactions):
+                    supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
+                    result.interactions.append(supera_nu)  
             
         return result  
  
