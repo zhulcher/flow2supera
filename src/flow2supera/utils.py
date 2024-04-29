@@ -1,13 +1,9 @@
-import sys, os
-import h5py
-import h5flow
+import os
 import numpy as np
 import time
 import flow2supera
-import argparse
 import ROOT
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
-#from LarpixParser import event_parser as EventParser
 from larcv import larcv
 
 def get_flow2supera(config_key):

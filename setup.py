@@ -11,7 +11,7 @@ setup(
     version="0.0.1",
     include_package_data=True,
     author=['Kazuhiro Terao, Zach Hulcher, Andrew Mogan'],
-    author_email='kterao@slac.stanford.edu, zhulchero@slac.stanford.edu, andrew.mogan@colostate.edu',
+    author_email='kterao@slac.stanford.edu, zhulcher@slac.stanford.edu, andrew.mogan@colostate.edu',
     description='Supera interface for ndlar_flow data files',
     license='MIT',
     keywords='supera larnd-sim larcv larcv3 neutrinos deep learning lartpc_mlreco3d ndlar_flow h5flow',
