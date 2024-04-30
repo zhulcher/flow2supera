@@ -244,7 +244,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         p.interaction_id = int(trajectory['vertex_id'])
         p.trackid        = int(trajectory['file_traj_id']) # Unique among all files used in SuperaAtomic
         p.genid          = int(trajectory['traj_id'])
-        if(trajectory['primary']): p.primary = True
         p.pdg            = int(trajectory['pdg_id'])
         p.px = trajectory['pxyz_start'][0] 
         p.py = trajectory['pxyz_start'][1] 
