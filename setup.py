@@ -20,9 +20,9 @@ setup(
     },
     url='https://github.com/DeepLearnPhysics/flow2supera',
     scripts=['bin/run_flow2supera.py'],
-    packages=['flow2supera','flow2supera.pdg_data','flow2supera.config_data'],
+    packages=['flow2supera','flow2supera.config_data'],
     package_dir={'': 'src'},
-    package_data={'flow2supera': ['pdg_data/pdg.npz','config_data/*.yaml']},
+    package_data={'flow2supera': ['config_data/*.yaml']},
     install_requires=[
         'numpy',
         #'scikit-build',
