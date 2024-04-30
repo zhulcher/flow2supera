@@ -147,11 +147,12 @@ def run_supera(out_file='larcv.root',
         driver.GenerateImageMeta(EventInput)
         meta   = larcv_meta(driver.Meta())
         tensor_packets = writer.get_data("sparse3d", "packets")
-        driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
         if not is_sim:
             driver.Meta().edep2voxelset(EventInput.unassociated_edeps).fill_std_vectors(id_v, value_v)
-        larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
+            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
         if is_sim:
+            driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
             driver.GenerateLabel(EventInput) 
             # Start data store process
             result = driver.Label()
