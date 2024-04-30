@@ -75,11 +75,13 @@ class FlowReader:
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
         events_path = 'charge/events/'
-        events_data_path = 'charge/events/data/'
+        # events_data_path = 'charge/events/data/'
         event_hit_indices_path = 'charge/events/ref/charge/calib_prompt_hits/ref_region/'
+
         calib_prompt_hits_path = 'charge/calib_prompt_hits/data'
         
         backtracked_hits_path = 'mc_truth/calib_prompt_hit_backtrack/data'
+
         interactions_path = 'mc_truth/interactions/data'
         segments_path = 'mc_truth/segments/data'
         trajectories_path = 'mc_truth/trajectories/data'
