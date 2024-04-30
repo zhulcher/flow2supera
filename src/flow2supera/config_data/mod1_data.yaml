@@ -6,7 +6,7 @@ LogLevel:        INFO
 EventSeparator:  'spillID'
 ActiveDetectors: ["TPCActive_shape"]
 MaxSegmentSize:  0.03
-PropertyKeyword: '2x2'
+PropertyKeyword: 'mod1'
 TileLayout: ''
 DetectorProperties: ''
 ParserRunConfig:

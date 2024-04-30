@@ -47,12 +47,12 @@ class FlowReader:
             if os.path.isfile(config):
                 file=config
             else:
-               file=flow2supera.config.get_config(config)
+                file=flow2supera.config.get_config(config)
             with open(file,'r') as f:
                 cfg=yaml.load(f.read(),Loader=Loader)
                 if 'Type' in cfg.keys():
                     self._is_sim=cfg.get('Type')[0]=='sim'
-                    self._is_mpvmpr=cfg.get('Type')[1]=='mpvmpr'    
+                    self._is_mpvmpr=cfg.get('Type')[1]=='mpvmpr'  
                 
 
         
@@ -69,13 +69,12 @@ class FlowReader:
             yield self.GetEvent(entry)
 
     def ReadFile(self, input_files, verbose=False):
-
+        
         print('Reading input file...')
 
         # H5Flow's H5FlowDataManager class associated datasets through references
         # These paths help us get the correct associations
-        events_path = 'charge/events/'
-        # events_data_path = 'charge/events/data/'
+        events_path = 'charge/events/data'
         event_hit_indices_path = 'charge/events/ref/charge/calib_prompt_hits/ref_region/'
 
         calib_prompt_hits_path = 'charge/calib_prompt_hits/data'
@@ -86,7 +85,6 @@ class FlowReader:
         segments_path = 'mc_truth/segments/data'
         trajectories_path = 'mc_truth/trajectories/data'
 
-        self._is_sim = False 
         # TODO Currently only reading one input file at a time. Is it 
         # necessary to read multiple? If so, how to handle non-unique
         # event IDs?
@@ -94,9 +92,8 @@ class FlowReader:
         flow_manager = h5flow.data.H5FlowDataManager(input_files, 'r')
         with h5py.File(input_files, 'r') as fin:
             events = flow_manager[events_path]
-            events_data = events['data']
-            self._event_ids = events_data['id']
-            self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
+            self._event_ids = events['id']
+            self._event_t0s = events['unix_ts'] + events['ts_start']/1e7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[calib_prompt_hits_path]
             if self._is_sim:
@@ -112,8 +109,8 @@ class FlowReader:
         nu_result.id = int(ixn_idx)
         nu_result.interaction_id = int(ixn['vertex_id']) 
         nu_result.target = int(ixn['target'])
-        nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
-        # nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
+        #nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
+        nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
         nu_result.pdg_code = int(ixn['nu_pdg'])
         nu_result.lepton_pdg_code = int(ixn['lep_pdg'])  
         nu_result.energy_init = ixn['Enu']
@@ -240,7 +237,7 @@ class FlowReader:
         segments_array = np.array(self._segments)
         result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
-        if not self._is_mpvmpr:
+        if self._is_mpvmpr:
             return result
         
         result.interactions = []
