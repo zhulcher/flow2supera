@@ -22,7 +22,7 @@ BBoxConfig:
     BBoxSize:   [141.888,127.6992,141.888]
     BBoxTop:    [70.944,63.8496,70.944]
     BBoxBottom: [-70.944,-63.8496,-70.944]
-    NOTE: The VoxelSize will vary by module for MR5
+    #NOTE: The VoxelSize will vary by module for MR5
     VoxelSize:  [0.4434,0.4434,0.4434]
 
 #     BBoxSize:   [-30.27225, 30.27225]
