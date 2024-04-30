@@ -19,19 +19,19 @@ BBoxConfig:
     LogLevel:   WARNING
     Seed:       -1
 
-    # BBoxSize:   [141.888,127.6992,141.888]
-    # BBoxTop:    [70.944,63.8496,70.944]
-    # BBoxBottom: [-70.944,-63.8496,-70.944]
-    # NOTE: The VoxelSize will vary by module for MR5
+    BBoxSize:   [141.888,127.6992,141.888]
+    BBoxTop:    [70.944,63.8496,70.944]
+    BBoxBottom: [-70.944,-63.8496,-70.944]
+    NOTE: The VoxelSize will vary by module for MR5
     VoxelSize:  [0.4434,0.4434,0.4434]
 
 #     BBoxSize:   [-30.27225, 30.27225]
 #     BBoxTop:    [-61.85430145263672, 61.85430145263672]
 #     BBoxBottom: [-30.816299438476562, 30.816299438476562]
     
-    BBoxSize:   [123.70860,61.632599,123.70860]
-    BBoxTop:    [61.85430145263672,30.816299438476562,61.85430145263672]
-    BBoxBottom: [-61.85430145263672,-30.816299438476562,-61.85430145263672]
+#     BBoxSize:   [123.70860,61.632599,123.70860]
+#     BBoxTop:    [61.85430145263672,30.816299438476562,61.85430145263672]
+#     BBoxBottom: [-61.85430145263672,-30.816299438476562,-61.85430145263672]
 
 LabelAlgorithm: LArTPCMLReco3D
 LabelConfig:
