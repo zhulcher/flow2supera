@@ -16,6 +16,7 @@ class InputEvent:
     hits = None
     backtracked_hits = None
     calib_final_hits  = None
+    hit_pos_time_energy = None
     trajectories = None
     interactions = []
     t0 = -1
@@ -49,9 +50,11 @@ class FlowReader:
                file=flow2supera.config.get_config(config)
             with open(file,'r') as f:
                 cfg=yaml.load(f.read(),Loader=Loader)
-                if 'SimulationType' in cfg.keys():
-                    self._is_mpvmpr=cfg.get('SimulationType')=='mpvmpr'
+                if 'Type' in cfg.keys():
+                    self._is_sim=cfg.get('Type')[0]=='sim'
+                    self._is_mpvmpr=cfg.get('Type')[1]=='mpvmpr'    
                 
+
         
         if input_files:
             self.ReadFile(input_files)
@@ -74,10 +77,11 @@ class FlowReader:
         events_path = 'charge/events/'
         # events_data_path = 'charge/events/data/'
         event_hit_indices_path = 'charge/events/ref/charge/calib_prompt_hits/ref_region/'
-        # calib_final_hits_path = 'charge/calib_final_hits/data'
+
         calib_prompt_hits_path = 'charge/calib_prompt_hits/data'
+        
         backtracked_hits_path = 'mc_truth/calib_prompt_hit_backtrack/data'
-        # packets_path = 'charge/packets'
+
         interactions_path = 'mc_truth/interactions/data'
         segments_path = 'mc_truth/segments/data'
         trajectories_path = 'mc_truth/trajectories/data'
@@ -95,31 +99,11 @@ class FlowReader:
             self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7 #ts_start is in ticks and 0.1 microseconds per tick for charge readout
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits = flow_manager[calib_prompt_hits_path]
-            self._backtracked_hits = flow_manager[backtracked_hits_path]
-            self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
-                #self._segments = flow_manager[events_path,
-                #                              calib_final_hits_path,
-                #                              calib_prompt_hits_path,
-                #                              packets_path,
-                #                              segments_path]
                 self._segments = flow_manager[segments_path]
                 self._trajectories = flow_manager[trajectories_path]
                 self._interactions = flow_manager[interactions_path]
-
-        # This next bit is only necessary if reading multiple files
-        # Stack datasets so that there's a "file index" preceding the event index
-        #self._event_ids = np.stack(event_ids)
-        #self._event_ids = np.concatenate(event_ids)
-        #self._event_t0s = np.stack(t0s)
-        #self._calib_final_hits = np.stack(calib_final_hits)
-        #self._t0s = np.stack(t0s)
-        #self._segments = np.stack(segments)
-        #self._trajectories = np.stack(trajectories)
-
-        if not self._is_sim:
-            print('Currently only simulation is supoprted')
-            raise NotImplementedError
+                self._backtracked_hits = flow_manager[backtracked_hits_path]
     
     def GetNeutrinoIxn(self, ixn, ixn_idx):
         
@@ -237,6 +221,12 @@ class FlowReader:
         hit_start_index = self._event_hit_indices[result.event_id][0]
         hit_stop_index  = self._event_hit_indices[result.event_id][1]
         result.hits = self._hits[hit_start_index:hit_stop_index]
+        result.hit_pos_time_energy = np.array([result.hits['x'], result.hits['y'], result.hits['z'], result.hits['t_drift'], result.hits['E']])
+
+            
+        if not self._is_sim:
+            return result
+        
         result.backtracked_hits = self._backtracked_hits[hit_start_index:hit_stop_index]
 
         truth_ids_dict = self.GetEventTruthFromHits(result.backtracked_hits, 
@@ -250,15 +240,18 @@ class FlowReader:
         segments_array = np.array(self._segments)
         result.segments = segments_array[np.isin(segments_array['segment_id'], event_segment_ids)]
 
+        if not self._is_mpvmpr:
+            return result
+        
         result.interactions = []
+        
         if len(result.segments) != 0:
             result.true_event_id = result.segments[0]['event_id']        
             interactions_array  = np.array(self._interactions)
             event_interactions = interactions_array[interactions_array['event_id'] == result.true_event_id]
-            if not self._is_mpvmpr:
-                for ixn_idx, ixn in enumerate(event_interactions):
-                    supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
-                    result.interactions.append(supera_nu)  
+            for ixn_idx, ixn in enumerate(event_interactions):
+                supera_nu = self.GetNeutrinoIxn(ixn, ixn_idx)
+                result.interactions.append(supera_nu)  
             
         return result  
  
@@ -267,14 +260,15 @@ class FlowReader:
     def EventDump(self, input_event):
         print('-----------EVENT DUMP-----------------')
         print('Event ID {}'.format(input_event.event_id))
-        print('True event ID {}'.format(input_event.true_event_id))
         print('Event t0 {}'.format(input_event.t0))
         print('Event hit indices (start, stop):', input_event.hit_indices)
-        print('Backtracked hits len:', len(input_event.backtracked_hits))
-        print('hits shape:', input_event.hits.shape)
-        print('segments in this event:', len(input_event.segments))
-        print('trajectories in this event:', len(input_event.trajectories))
-        print('interactions in this event:', len(input_event.interactions))
+        if self._is_sim:
+            print('True event ID {}'.format(input_event.true_event_id))
+            print('Backtracked hits len:', len(input_event.backtracked_hits))
+            print('hits shape:', input_event.hits.shape)
+            print('segments in this event:', len(input_event.segments))
+            print('trajectories in this event:', len(input_event.trajectories))
+            print('interactions in this event:', len(input_event.interactions))
 
 
 

@@ -12,7 +12,7 @@ DetectorProperties: ''
 ParserRunConfig:
     event_separator: 'eventID'
 ElectronEnergyThreshold: 5
-Type: ['sim', 'mpvmpr']
+Type: ['data', '']
 
 BBoxAlgorithm: BBoxInteraction
 BBoxConfig:
