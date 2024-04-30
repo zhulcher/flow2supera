@@ -112,103 +112,116 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             )
         super().ConfigureFromText(txt)
 
-    def ReadEvent(self, data, verbose=False):
+    def ReadEvent(self, data, is_sim=True,verbose=False):
         
         start_time = time.time()
 
         # Assuming your segment IDs are in a dataset named 'segment_ids'
-        segment_ids = data.segments['segment_id']  # Load the segment IDs into a NumPy array
-        segment_id_to_index = {segment_id: index for index, segment_id in enumerate(segment_ids)}
-
         supera_event = supera.EventInput()
-        supera_event.reserve(len(data.trajectories))
+        if is_sim:
+            segment_ids = data.segments['segment_id']  # Load the segment IDs into a NumPy array
+            segment_id_to_index = {segment_id: index for index, segment_id in enumerate(segment_ids)}
 
-        trajectory_ids = data.trajectories['file_traj_id']
-        unique_trajectory_ids = set(trajectory_ids)
-        print('Num unique trajectory IDs:', len(unique_trajectory_ids))
+       
+            supera_event.reserve(len(data.trajectories))
 
-        # 1. Loop over trajectories, create one supera::ParticleInput for each
-        #    store particle inputs in list to fill parent information later
-        #max_trajectory_id = max(data.trajectories['file_traj_id'].max(), data.segments['file_traj_id'].max())
+            trajectory_ids = data.trajectories['file_traj_id']
+            unique_trajectory_ids = set(trajectory_ids)
+            print('Num unique trajectory IDs:', len(unique_trajectory_ids))
 
-        #Note: traj_id is not unique for the file due to merging of flow files, so use 'file_traj_id'
-        #max_trajectory_id = data.trajectories['file_traj_id'].max()
-        max_trajectory_id = max(data.trajectories['file_traj_id'],default=-1)
-        # max_segment_id = data.segments['file_traj_id'].max()
-        if verbose: print('Max trajectory ID:', max_trajectory_id)
+            # 1. Loop over trajectories, create one supera::ParticleInput for each
+            #    store particle inputs in list to fill parent information later
+            #max_trajectory_id = max(data.trajectories['file_traj_id'].max(), data.segments['file_traj_id'].max())
 
-        # When we start constructing Supera::EDeps, we'll need a map from the local 
-        # trajectory ID to the index within supera_event in order to correctly associate
-        # EDeps to the right pcloud. 
-        # TODO This will get enormous for large trajectory IDs. How should we handle this?
-        self._trajectory_id_to_index.resize(int(max_trajectory_id + 1), supera.kINVALID_INDEX)
-        trajectories_dict = {}
-        for traj in data.trajectories:
-            key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
-            trajectories_dict[key] = int(traj['file_traj_id'])
+            #Note: traj_id is not unique for the file due to merging of flow files, so use 'file_traj_id'
+            #max_trajectory_id = data.trajectories['file_traj_id'].max()
+            max_trajectory_id = max(data.trajectories['file_traj_id'],default=-1)
+            # max_segment_id = data.segments['file_traj_id'].max()
+            if verbose: print('Max trajectory ID:', max_trajectory_id)
+
+            # When we start constructing Supera::EDeps, we'll need a map from the local 
+            # trajectory ID to the index within supera_event in order to correctly associate
+            # EDeps to the right pcloud. 
+            # TODO This will get enormous for large trajectory IDs. How should we handle this?
+            self._trajectory_id_to_index.resize(int(max_trajectory_id + 1), supera.kINVALID_INDEX)
+            trajectories_dict = {}
+            for traj in data.trajectories:
+                key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
+                trajectories_dict[key] = int(traj['file_traj_id'])
             
-        for traj in data.trajectories:
-            
-            part_input = supera.ParticleInput()
+            for traj in data.trajectories:
+                
+                part_input = supera.ParticleInput()
 
-            part_input.valid = True
-            part_input.part  = self.TrajectoryToParticle(traj, trajectories_dict)
-            part_input.part.id = supera_event.size()
-            if self.GetLogger().verbose():
-                if verbose:
-                    print('TrackID',part_input.part.trackid,
-                          'PDG',part_input.part.pdg,
-                          'Energy',part_input.part.energy_init)
-            if traj['file_traj_id'] < 0:
-                print('Negative track ID found',traj['file_traj_id'])
-                raise ValueError
-            self._trajectory_id_to_index[int(traj['file_traj_id'])] = part_input.part.id
-            supera_event.push_back(part_input)
+                part_input.valid = True
+                part_input.part  = self.TrajectoryToParticle(traj, trajectories_dict)
+                part_input.part.id = supera_event.size()
+                if self.GetLogger().verbose():
+                    if verbose:
+                        print('TrackID',part_input.part.trackid,
+                            'PDG',part_input.part.pdg,
+                            'Energy',part_input.part.energy_init)
+                if traj['file_traj_id'] < 0:
+                    print('Negative track ID found',traj['file_traj_id'])
+                    raise ValueError
+                self._trajectory_id_to_index[int(traj['file_traj_id'])] = part_input.part.id
+                supera_event.push_back(part_input)
 
-        print('Trajectory ID to Index map len:', len(self._trajectory_id_to_index))
-            
-        if verbose:
-            print("--- trajectory filling %s seconds ---" % (time.time() - start_time)) 
-        start_time = time.time()  
+            print('Trajectory ID to Index map len:', len(self._trajectory_id_to_index))
+                
+            if verbose:
+                print("--- trajectory filling %s seconds ---" % (time.time() - start_time)) 
+            start_time = time.time()  
 
-        # 2. Fill parent information for ParticleInputs created in previous loop
-        print('Len supera_event:', len(supera_event))
-        for i, part in enumerate(supera_event):
-            traj = data.trajectories[i]
-            parent = None            
-            if (part.part.parent_trackid >= self._trajectory_id_to_index.size()): continue
-            parent_index = self._trajectory_id_to_index[part.part.parent_trackid]
-            if parent_index == supera.kINVALID_INDEX: #TO DO: Check this
-                print('Skipping invalid index')
-                continue
+            # 2. Fill parent information for ParticleInputs created in previous loop
+            print('Len supera_event:', len(supera_event))
+            for i, part in enumerate(supera_event):
+                traj = data.trajectories[i]
+                parent = None            
+                if (part.part.parent_trackid >= self._trajectory_id_to_index.size()): continue
+                parent_index = self._trajectory_id_to_index[part.part.parent_trackid]
+                if parent_index == supera.kINVALID_INDEX: #TO DO: Check this
+                    print('Skipping invalid index')
+                    continue
 
-            parent = supera_event[parent_index].part
-            part.part.parent_pdg = parent.pdg
-                    
-            self.SetProcessType(traj, part.part, parent)
+                parent = supera_event[parent_index].part
+                part.part.parent_pdg = parent.pdg
+                        
+                self.SetProcessType(traj, part.part, parent)
 
-        backtracked_hits = data.backtracked_hits
-        # TODO Calculate the length of this in advance and use reserve; appending is slow!
-        for i_bt, backtracked_hit in enumerate(backtracked_hits):
-            reco_hit = data.hits[i_bt]
-            for contrib in range(len(backtracked_hit['fraction'])):
-                if abs(backtracked_hit['fraction'][contrib]) == 0: break
+            backtracked_hits = data.backtracked_hits
+            # TODO Calculate the length of this in advance and use reserve; appending is slow!
+            for i_bt, backtracked_hit in enumerate(backtracked_hits):
+                reco_hit = data.hits[i_bt]
+                for contrib in range(len(backtracked_hit['fraction'])):
+                    if abs(backtracked_hit['fraction'][contrib]) == 0: break
+                    edep = supera.EDep()
+                    edep.x = reco_hit['x']
+                    edep.y = reco_hit['y']
+                    edep.z = reco_hit['z']
+                    edep.t = reco_hit['t_drift']
+
+                    segment_id = backtracked_hit['segment_id'][contrib]
+                    segment_index = segment_id_to_index[segment_id]
+                    segment = data.segments[segment_index]
+                    trajectory_id = int(segment['file_traj_id'])
+                    edep.dedx = segment['dEdx']
+                    edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
+                    supera_event_index = self._trajectory_id_to_index[trajectory_id]
+                    if supera_event_index == supera.kINVALID_INDEX:
+                        raise ValueError('Invalid EventInput index')
+                    supera_event[supera_event_index].pcloud.push_back(edep)
+
+        if not is_sim:
+            hits = data.hits
+            for i_ht, hit in enumerate(hits):
                 edep = supera.EDep()
-                edep.x = reco_hit['x']
-                edep.y = reco_hit['y']
-                edep.z = reco_hit['z']
-                edep.t = reco_hit['t_drift']
-
-                segment_id = backtracked_hit['segment_id'][contrib]
-                segment_index = segment_id_to_index[segment_id]
-                segment = data.segments[segment_index]
-                trajectory_id = int(segment['file_traj_id'])
-                edep.dedx = segment['dEdx']
-                edep.e = reco_hit['E'] * backtracked_hit['fraction'][contrib]
-                supera_event_index = self._trajectory_id_to_index[trajectory_id]
-                if supera_event_index == supera.kINVALID_INDEX:
-                    raise ValueError('Invalid EventInput index')
-                supera_event[supera_event_index].pcloud.push_back(edep)
+                edep.x = hit['x']
+                edep.y = hit['y']
+                edep.z = hit['z']
+                edep.t = hit['t_drift']
+                edep.e = hit['E']
+                supera_event.unassociated_edeps.push_back(edep)
 
         if verbose:
             print('Driver processed hits in {:.2f} s'.format(time.time() - start_time))

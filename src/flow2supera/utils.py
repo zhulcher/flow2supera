@@ -1,15 +1,11 @@
-import sys, os
-import h5py
-import h5flow
+import os
 import numpy as np
 import time
 import flow2supera
-import argparse
 import ROOT
 import yaml
 from yaml import Loader
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
-#from LarpixParser import event_parser as EventParser
 from larcv import larcv
 
 def get_flow2supera(config_key):
@@ -80,8 +76,9 @@ def run_supera(out_file='larcv.root',
                config_key='',
                num_events=-1,
                num_skip=0,
-               ignore_bad_association=True,
-               save_log=None):
+            #    ignore_bad_association=True,
+               save_log=None,
+               verbose=False):
 
     is_sim = False
     start_time = time.time()
@@ -125,6 +122,7 @@ def run_supera(out_file='larcv.root',
             logger[key]=[]
         driver.log(logger)
     
+    print("importing",cfg.get('Type'))
 
     print("----------------Processing charge events----------------")
     for entry in range(len(reader)):
@@ -145,24 +143,22 @@ def run_supera(out_file='larcv.root',
         if save_log:
             log_supera_integrity_check(EventInput, driver, logger, verbose)
             
+        EventInput = driver.ReadEvent(input_data,is_sim=is_sim)
+        driver.GenerateImageMeta(EventInput)
+        meta   = larcv_meta(driver.Meta())
+        tensor_packets = writer.get_data("sparse3d", "packets")
+        if not is_sim:
+            driver.Meta().edep2voxelset(EventInput.unassociated_edeps).fill_std_vectors(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
         if is_sim:
-            EventInput = driver.ReadEvent(input_data)
-            time_convert = time.time() - t1
-
-            driver.GenerateImageMeta(EventInput)
-
+            driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
+            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
             driver.GenerateLabel(EventInput) 
             # Start data store process
             result = driver.Label()
-            meta   = larcv_meta(driver.Meta())
-        
             tensor_energy = writer.get_data("sparse3d", "pcluster")
             result.FillTensorEnergy(id_v, value_v)
             larcv.as_event_sparse3d(tensor_energy, meta, id_v, value_v)
-        
-            tensor_packets = writer.get_data("sparse3d", "packets")
-            driver.Meta().edep2voxelset(driver._edeps_all).fill_std_vectors(id_v, value_v)
-            larcv.as_event_sparse3d(tensor_packets, meta, id_v, value_v)
 
             tensor_semantic = writer.get_data("sparse3d", "pcluster_semantics")
             result.FillTensorSemantic(id_v, value_v)
