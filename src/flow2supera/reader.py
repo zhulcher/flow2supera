@@ -16,7 +16,6 @@ class InputEvent:
     hits = None
     backtracked_hits = None
     calib_final_hits  = None
-    hit_pos_time_energy = None
     trajectories = None
     interactions = []
     t0 = -1
@@ -218,8 +217,6 @@ class FlowReader:
         hit_start_index = self._event_hit_indices[result.event_id][0]
         hit_stop_index  = self._event_hit_indices[result.event_id][1]
         result.hits = self._hits[hit_start_index:hit_stop_index]
-        result.hit_pos_time_energy = np.array([result.hits['x'], result.hits['y'], result.hits['z'], result.hits['t_drift'], result.hits['E']])
-
             
         if not self._is_sim:
             return result
