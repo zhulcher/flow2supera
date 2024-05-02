@@ -2,7 +2,6 @@ import time
 import edep2supera
 from ROOT import supera, std, TG4TrajectoryPoint
 import numpy as np
-import LarpixParser
 import yaml
 from yaml import Loader
 
@@ -19,7 +18,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
     def __init__(self):
         super().__init__()
-        self._geom_dict  = None
+        # self._geom_dict  = None
         self._run_config = None
         self._trajectory_id_to_index = std.vector('supera::Index_t')()
         self._allowed_detectors = std.vector('std::string')()
@@ -44,50 +43,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             data_holder[key]=[]
         self._log = data_holder
 
-    def LoadPropertyConfigs(self, cfg_dict):
-
-        # Expect only PropertyKeyword or (TileLayout,DetectorProperties). Not both.
-        if cfg_dict.get('PropertyKeyword',None):
-            if cfg_dict.get('TileLayout',None) or cfg_dict.get('DetectorProperties',None):
-                print('PropertyKeyword provided:', cfg_dict['PropertyKeyword'])
-                print('But also founnd below:')
-                for keyword in ['TileLayout','DetectorProperties']:
-                    print('%s: "%s"' % (keyword,cfg_dict.get(keyword, None)))
-                    print('Bool', bool(cfg_dict.get(keyword,None)))
-                print('You cannot specify duplicated property information!')
-                return False
-            else:
-                print('else')
-                try:
-                    print('try')
-                    self._run_config, self._geom_dict = LarpixParser.util.detector_configuration(cfg_dict['PropertyKeyword'])
-                except ValueError:
-                    print('Failed to load with PropertyKeyword', cfg_dict['PropertyKeyword'])
-                    print('Supported types:', LarpixParser.util.configuration_keywords())
-                    return False
-        else:
-            print('PropertyKeyword missing. Loading TileLayout and DetectorProperties...')
-            if not 'TileLayout' in cfg_dict:
-                print('TileLayout not in the configuration data!')
-                return False
-
-            if not 'DetectorProperties' in cfg_dict:
-                print('DetectorProperties not in the configuration data!')
-                raise False
-
-            self._geom_dict  = LarpixParser.util.load_geom_dict(cfg_dict['TileLayout'])
-            self._run_config = LarpixParser.util.get_run_config(cfg_dict['DetectorProperties'])
-
-        print('self._geom_dict', self._geom_dict)
-        print('self._run_config', self._run_config)
-        # Apply run config modification if requested
-        run_config_mod = cfg_dict.get('ParserRunConfig',None)
-        if run_config_mod:
-            for key,val in run_config_mod.items():
-                self._run_config[key]=val
-        print('Returning property configs')
-        return True
-
     def ConfigureFromFile(self,fname):
         with open(fname,'r') as f:
             cfg=yaml.load(f.read(),Loader=Loader)
@@ -102,15 +57,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 self._ass_charge_limit)
 
         super().ConfigureFromFile(fname)
-
-    def ConfigureFromText(self,txt):
-        cfg=yaml.load(txt, Loader=Loader)
-        if not self.LoadPropertyConfigs(cfg):
-            raise ValueError('Failed to configure flow2supera!')
-            self._electron_energy_threshold = cfg.get('ElectronEnergyThreshold',
-                self._electron_energy_threshold
-            )
-        super().ConfigureFromText(txt)
 
     def ReadEvent(self, data, is_sim=True,verbose=False):
         
