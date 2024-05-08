@@ -235,29 +235,64 @@ class InputReader:
                     trajectory = reduced_trajectories[index_array[trajectory_parent_id]] 
 
         return dict(segment_ids = np.array(segment_ids), trajectory_ids = np.array(trajectory_ids))
-    
-    def GetEntry(self, event_index):
+
+    def EntryQualityCheck(self, entry):
         
-        if event_index >= len(self._event_ids):
-            print('Entry {} is above allowed entry index ({})'.format(event_index, len(self._event_ids)))
+        # this entry
+        hidx_min, hidx_max = self._event_hit_indices[entry]
+        bhits = self._backtracked_hits[hidx_min:hidx_max]
+        ids_this = self.GetEventIDFromSegments(bhits,self._segments)
+        print('ids_this',ids_this)
+        if not len(ids_this) == 1:
+            print(f'[SuperaDriver] ERROR: this entry {entry} contains event_id {ids_this}')
+            return np.array([])
+
+        # previous entry if entry>0
+        if entry > 0:
+            hidx_min, hidx_max = self._event_hit_indices[entry-1]
+            bhits = self._backtracked_hits[hidx_min:hidx_max]
+            ids_prev = self.GetEventIDFromSegments(bhits,self._segments)
+            if len(ids_prev) > 1 and (ids_this[0] in ids_prev):
+                print(f'[SuperaDriver] ERROR: this entry {entry} with event id {ids_this[0]} has some hits mixed into the previous entry {entry-1}')
+                return np.array([])
+
+        if entry+1 < len(self._event_ids):
+            hidx_min, hidx_max = self._event_hit_indices[entry+1]
+            bhits = self._backtracked_hits[hidx_min:hidx_max]
+            ids_next = self.GetEventIDFromSegments(bhits,self._segments)
+            if len(ids_next) > 1 and (ids_this[0] in ids_next):
+                print(f'[SuperaDriver] ERROR: this entry {entry} with event id {ids_this[0]} has some hits mixed into the next entry {entry+1}')
+                return np.array([])
+
+        return ids_this
+
+
+    def GetEntry(self, entry):
+        
+        if entry >= len(self._event_ids):
+            print('Entry {} is above allowed entry index ({})'.format(entry, len(self._event_ids)))
             print('Invalid read request (returning None)')
             return None
         
         result = InputEvent()
 
-        result.event_id = self._event_ids[event_index]
+        result.event_id = self._event_ids[entry]
 
-        result.t0 = self._event_t0s[event_index] 
+        result.t0 = self._event_t0s[entry] 
 
-        result.hit_indices = self._event_hit_indices[event_index]
-        hidx_min, hidx_max = self._event_hit_indices[event_index]
+        result.hit_indices = self._event_hit_indices[entry]
+        hidx_min, hidx_max = self._event_hit_indices[entry]
         result.hits = self._hits[hidx_min:hidx_max]
         result.backtracked_hits = self._backtracked_hits[hidx_min:hidx_max]
 
-        st_event_id = self.GetEventIDFromSegments(result.backtracked_hits,self._segments)
+        #st_event_id = self.GetEventIDFromSegments(result.backtracked_hits,self._segments)
+        st_event_id = self.EntryQualityCheck(entry)
 
         if len(st_event_id) < 1:
+            print(f'[SuperaDriver] Skipping this entry ({entry})...')
             return result
+
+        print(st_event_id)
 
         assert len(st_event_id)==1, f'Found >1 unique "event_id" from backtracked segments ({st_event_id})'
 

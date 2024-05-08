@@ -6,7 +6,7 @@ LogLevel:        WARNING
 EventSeparator:  'spillID'
 ActiveDetectors: ["TPCActive_shape"]
 ParserConfigKeyword: '2x2'
-SimConfigKeyword:    '2x2_mod2mod_variation_mpvmpr'
+SimConfigKeyword:    '2x2_mpvmpr'
 TileLayout: ''
 DetectorProperties: ''
 #ParserRunConfig:
