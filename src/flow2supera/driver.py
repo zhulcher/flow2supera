@@ -19,7 +19,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
 
     def __init__(self):
         super().__init__()
-        self._geom_dict  = None
+        # self._geom_dict  = None
         self._run_config = None
         self._trajectory_id_to_index = std.vector('supera::Index_t')()
         self._allowed_detectors = std.vector('std::string')()
@@ -75,10 +75,10 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 print('DetectorProperties not in the configuration data!')
                 raise False
 
-            self._geom_dict  = LarpixParser.util.load_geom_dict(cfg_dict['TileLayout'])
+            # self._geom_dict  = LarpixParser.util.load_geom_dict(cfg_dict['TileLayout'])
             self._run_config = LarpixParser.util.get_run_config(cfg_dict['DetectorProperties'])
 
-        print('self._geom_dict', self._geom_dict)
+        # print('self._geom_dict', self._geom_dict)
         print('self._run_config', self._run_config)
         # Apply run config modification if requested
         run_config_mod = cfg_dict.get('ParserRunConfig',None)
