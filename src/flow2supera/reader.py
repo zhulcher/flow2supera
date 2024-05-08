@@ -99,8 +99,6 @@ class InputReader:
             self._event_t0s = events_data['unix_ts'] + events_data['ts_start']/1e7 
             self._event_hit_indices = flow_manager[event_hit_indices_path]
             self._hits              = flow_manager[calib_prompt_hits_path]
-            self._backtracked_hits  = flow_manager[backtracked_hits_path]
-            self._is_sim = 'mc_truth' in fin.keys()
             if self._is_sim:
                 #self._segments = flow_manager[events_path,
                 #                              calib_final_hits_path,
@@ -110,6 +108,7 @@ class InputReader:
                 self._segments     = np.array(flow_manager[segments_path])
                 self._trajectories = np.array(flow_manager[trajectories_path])
                 self._interactions = np.array(flow_manager[interactions_path])
+                self._backtracked_hits  = flow_manager[backtracked_hits_path]
 
         # This next bit is only necessary if reading multiple files
         # Stack datasets so that there's a "file index" preceding the event index
@@ -121,9 +120,6 @@ class InputReader:
         #self._segments = np.stack(segments)
         #self._trajectories = np.stack(trajectories)
 
-        if not self._is_sim:
-            print('Currently only simulation is supoprted')
-            raise NotImplementedError
 
     
     def GetNeutrinoIxn(self, ixn, ixn_idx):

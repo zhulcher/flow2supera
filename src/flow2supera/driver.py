@@ -168,6 +168,8 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             for key in self.LOG_KEYS:
                 self._log[key].append(0)
         supera_event = supera.EventInput()
+        check_raw_sum=0
+        check_ana_sum=0
         if is_sim:
             assert data.trajectories is not None, '[SuperaDriver] ERROR data.trajectories is None'
 
@@ -244,8 +246,6 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
             self._edeps_all.clear();
             self._edeps_all.reserve(len(data.hits))
 
-            check_raw_sum=0
-            check_ana_sum=0
 
             backtracked_hits = data.backtracked_hits
             # TODO Calculate the length of this in advance and use reserve; appending is slow!
@@ -412,15 +412,15 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                         self._log['ass_charge_frac'][-1] += fsum
                         self._log['ass_frac'][-1] += 1
 
-                if verbose > 1:
-                    print('[INFO] Assessing packet',ip)
-                    print('       Associated?',seg_flag.sum())
-                    print('       Segments :', packet_segments)
-                    print('       TrackIDs :', [data.segments[self._segid2idx[packet_segments[idx]]]['file_traj_id'] for idx in range(packet_segments.shape[0])])
-                    print('       Fractions:', ['%.3f' % f for f in packet_fractions])
-                    print('       Energy   : %.3f' % dE[ip])
-                    print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
-                    print('       Distance :', ['%.3f' % f for f in seg_dist])
+                # if verbose > 1:
+                #     print('[INFO] Assessing packet',ip)
+                #     print('       Associated?',seg_flag.sum())
+                #     print('       Segments :', packet_segments)
+                #     print('       TrackIDs :', [data.segments[self._segid2idx[packet_segments[idx]]]['file_traj_id'] for idx in range(packet_segments.shape[0])])
+                #     print('       Fractions:', ['%.3f' % f for f in packet_fractions])
+                #     print('       Energy   : %.3f' % dE[ip])
+                #     print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
+                #     print('       Distance :', ['%.3f' % f for f in seg_dist])
         if not is_sim:
             hits = data.hits
             for hit in hits:
@@ -430,14 +430,15 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 edep.z = hit['z']
                 edep.t = hit['t_drift']
                 edep.e = hit['E']
-                supera_event.unassociated_edeps.push_back(edep)
+                self._edeps_unassociated.push_back(edep)
 
 
         if verbose:
             print("--- filling edep %s seconds ---" % (time.time() - start_time))
 
         print('Unassociated edeps',self._edeps_unassociated.size())
-        if self._search_association:
+
+        if self._search_association and is_sim:
             import tqdm
             # Attempt to associate unassociated edeps
             failed_unass = std.vector('supera::EDep')()

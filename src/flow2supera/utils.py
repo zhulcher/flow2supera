@@ -4,6 +4,8 @@ import time
 import flow2supera
 import ROOT
 from larcv import larcv
+import yaml
+from yaml import Loader
 from edep2supera.utils import get_iomanager, larcv_meta, larcv_particle, larcv_neutrino
 
 #from LarpixParser import event_parser as EventParser
@@ -178,7 +180,7 @@ def run_supera(out_file='larcv.root',
         time_read = time.time() - t0
         
         t1 = time.time()
-        EventInput = driver.ReadEvent(input_data)
+        EventInput = driver.ReadEvent(input_data,is_sim=is_sim)
         time_convert = time.time() - t1
 
         t2 = time.time()
