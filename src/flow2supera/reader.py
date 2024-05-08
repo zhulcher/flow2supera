@@ -242,7 +242,6 @@ class InputReader:
         hidx_min, hidx_max = self._event_hit_indices[entry]
         bhits = self._backtracked_hits[hidx_min:hidx_max]
         ids_this = self.GetEventIDFromSegments(bhits,self._segments)
-        print('ids_this',ids_this)
         if not len(ids_this) == 1:
             print(f'[SuperaDriver] ERROR: this entry {entry} contains event_id {ids_this}')
             return np.array([])
@@ -291,8 +290,6 @@ class InputReader:
         if len(st_event_id) < 1:
             print(f'[SuperaDriver] Skipping this entry ({entry})...')
             return result
-
-        print(st_event_id)
 
         assert len(st_event_id)==1, f'Found >1 unique "event_id" from backtracked segments ({st_event_id})'
 
