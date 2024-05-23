@@ -19,7 +19,7 @@ python3 bin/run_flow2supera.py -o <output_file> -c 2x2 <input_ndlar_flow_file>
 ```
 
 You can also specify the following _optional_ arguments:
-- `-c` or `--config`: Configuration keyword or a file path (full or relative including the file name). Currently, only a `2x2` config is supported.
+- `-c` or `--config`: Configuration keyword or a file path (full or relative including the file name). Supported configurations: `2x2`, `mod1_data`, `2x2_mpvmpr`.
 - `-n` or `--num_events`: Number of events to process.
 - `-s` or `--skip`: Number of first events to skip.
 - `-l` or `--log`: Name of a log file to be created.
