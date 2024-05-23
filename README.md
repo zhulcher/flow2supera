@@ -3,12 +3,7 @@ This repository contains code to translate the HDF5 files output by [ndlar_flow]
 
 # Prerequisites 
 
-`flow2supera` depends on [edep2supera](https://github.com/DeepLearnPhysics/edep2supera), [SuperaAtomic](https://github.com/DeepLearnPhysics/SuperaAtomic), and [h5flow](https://github.com/peter-madigan/h5flow). Install each of those repositories using the instructions on their respective READMEs and ensure that you can import them in python:
-```
-import edep2supera
-import supera
-import h5flow
-```
+`flow2supera` depends on [edep2supera](https://github.com/DeepLearnPhysics/edep2supera), [SuperaAtomic](https://github.com/DeepLearnPhysics/SuperaAtomic), [larcv](https://github.com/DeepLearnPhysics/larcv2) and [h5flow](https://github.com/peter-madigan/h5flow). Install each of those repositories using the instructions on their respective READMEs and ensure that you can import them in python:
 
 # Installation
 Once the prerequisites are met, simply run this command from the top directory:
