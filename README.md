@@ -3,12 +3,7 @@ This repository contains code to translate the HDF5 files output by [ndlar_flow]
 
 # Prerequisites 
 
-`flow2supera` depends on [edep2supera](https://github.com/DeepLearnPhysics/edep2supera), [SuperaAtomic](https://github.com/DeepLearnPhysics/SuperaAtomic), and [h5flow](https://github.com/peter-madigan/h5flow). Install each of those repositories using the instructions on their respective READMEs and ensure that you can import them in python:
-```
-import edep2supera
-import supera
-import h5flow
-```
+`flow2supera` depends on [edep2supera](https://github.com/DeepLearnPhysics/edep2supera), [SuperaAtomic](https://github.com/DeepLearnPhysics/SuperaAtomic), [larcv](https://github.com/DeepLearnPhysics/larcv2) and [h5flow](https://github.com/peter-madigan/h5flow). Install each of those repositories using the instructions on their respective READMEs and ensure that you can import them in python. Make sure the installation follows this order: `larcv` -> `SuperaAtomic` -> `edep2supera` -> `flow2supera`.
 
 # Installation
 Once the prerequisites are met, simply run this command from the top directory:
@@ -24,7 +19,7 @@ python3 bin/run_flow2supera.py -o <output_file> -c 2x2 <input_ndlar_flow_file>
 ```
 
 You can also specify the following _optional_ arguments:
-- `-c` or `--config`: Configuration keyword or a file path (full or relative including the file name). Currently, only a `2x2` config is supported.
+- `-c` or `--config`: Configuration keyword or a file path (full or relative including the file name). Supported configurations: `2x2`, `mod1_data`, `2x2_mpvmpr`.
 - `-n` or `--num_events`: Number of events to process.
 - `-s` or `--skip`: Number of first events to skip.
 - `-l` or `--log`: Name of a log file to be created.

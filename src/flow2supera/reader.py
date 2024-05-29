@@ -132,8 +132,7 @@ class InputReader:
         nu_result.id = int(ixn_idx)
         nu_result.interaction_id = int(ixn['vertex_id']) 
         nu_result.target = int(ixn['target'])
-        #nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
-        nu_result.vtx = supera.Vertex(ixn['vertex'][0], ixn['vertex'][1], ixn['vertex'][2], ixn['vertex'][3])
+        nu_result.vtx = supera.Vertex(ixn['x_vert'], ixn['y_vert'], ixn['z_vert'], ixn['t_vert'])
         nu_result.pdg_code = int(ixn['nu_pdg'])
         nu_result.lepton_pdg_code = int(ixn['lep_pdg'])  
         nu_result.energy_init = ixn['Enu']
