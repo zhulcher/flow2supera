@@ -201,7 +201,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                     edep.z = reco_hit['z']
                     edep.t = reco_hit['t_drift']
 
-                    segment_id = backtracked_hit['segment_id'][contrib]
+                    segment_id = backtracked_hit['segment_ids'][contrib]
                     segment_index = segment_id_to_index[segment_id]
                     segment = data.segments[segment_index]
                     trajectory_id = int(segment['file_traj_id'])
