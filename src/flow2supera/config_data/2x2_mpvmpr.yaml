@@ -13,6 +13,8 @@ DetectorProperties: ''
 #    event_separator: 'eventID'
 ElectronEnergyThreshold: 5
 SimulationType: 'mpvmpr'
+ClusterSizeLimit: 5
+DBSCANDist: 0.882366 # 1.99 * 0.4434
 
 BBoxAlgorithm: BBoxInteraction
 BBoxConfig:
@@ -44,11 +46,13 @@ LabelConfig:
     LogLevel: WARNING
     DeltaSize:     3
     ComptonSize:  10
-    LEScatterSize: 2
+    LEScatterSize: 5
     TouchDistance: 1
     StoreLEScatter:   True
     SemanticPriority: [1,0,2,3,4]
     EnergyDepositThreshold: 0.0
+    AssChargeLimit: 0.0
+    AssFractionLimit: 0.5
     RewriteInteractionID:  False
     #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
     #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]

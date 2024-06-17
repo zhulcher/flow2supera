@@ -161,7 +161,7 @@ class InputReader:
 
         
         try:
-            seg_ids = np.concatenate([bhit['segment_id'][bhit['fraction']!=0.] for bhit in backtracked_hits])
+            seg_ids = np.concatenate([bhit['segment_ids'][bhit['fraction']!=0.] for bhit in backtracked_hits])
 
             return np.unique(segments[seg_ids]['event_id'])
 
@@ -185,12 +185,12 @@ class InputReader:
         trajectory_ids = []
         v_dictionary = {}
         for bhit in backtracked_hits:
-            valid_idx_v = np.where(bhit['segment_id'] != 0)[0]
+            valid_idx_v = np.where(bhit['segment_ids'] != 0)[0]
             #print(bhit['fraction'])
             for idx in valid_idx_v:
 #            for contrib in range(len(backtracked_hit['fraction'])):
 #                if abs(backtracked_hit['fraction'][contrib]) == 0: break
-                seg_id = bhit['segment_id'][idx]
+                seg_id = bhit['segment_ids'][idx]
                 segment_ids.append(seg_id)
 
                 segment   = segments[seg_id]
@@ -307,7 +307,7 @@ class InputReader:
         #result.trajectories = self._trajectories[vrange[0]:vrange[1]]
 
         #event_segment_ids = truth_ids_dict['segment_ids']
-        #result.segments = segments_array[np.isin(self._segments['segment_id'], event_segment_ids)]
+        #result.segments = segments_array[np.isin(self._segments['segment_ids'], event_segment_ids)]
         #vrange = truth_ids_dict['segment_ids'].min(), truth_ids_dict['segment_ids'].max()+1
         #result.segments = self._segments[vrange[0]:vrange[1]]
 
