@@ -1,0 +1,50 @@
+# ===============
+# 2x2.yaml
+# ===============
+
+LogLevel:        INFO
+EventSeparator:  'spillID'
+ActiveDetectors: ["TPCActive_shape"]
+MaxSegmentSize:  0.03
+PropertyKeyword: '2x2'
+ParserConfigKeyword: '2x2'
+SimConfigKeyword:    '2x2_mod2mod_variation_mpvmpr'
+TileLayout: ''
+DetectorProperties: ''
+ParserRunConfig:
+    event_separator: 'eventID'
+ElectronEnergyThreshold: 5
+Type: ['data', '']
+
+BBoxAlgorithm: BBoxInteraction
+BBoxConfig:
+    LogLevel:   WARNING
+    Seed:       -1
+
+    BBoxSize:   [141.888,127.6992,141.888]
+    BBoxTop:    [70.944,63.8496,70.944]
+    BBoxBottom: [-70.944,-63.8496,-70.944]
+    # NOTE: The VoxelSize will vary by module for MR5
+    VoxelSize:  [0.4434,0.4434,0.4434]
+
+#     BBoxSize:   [-30.27225, 30.27225]
+#     BBoxTop:    [-61.85430145263672, 61.85430145263672]
+#     BBoxBottom: [-30.816299438476562, 30.816299438476562]
+    
+#     BBoxSize:   [123.70860,61.632599,123.70860]
+#     BBoxTop:    [61.85430145263672,30.816299438476562,61.85430145263672]
+#     BBoxBottom: [-61.85430145263672,-30.816299438476562,-61.85430145263672]
+
+LabelAlgorithm: LArTPCMLReco3D
+LabelConfig:
+    LogLevel: WARNING
+    DeltaSize:     3
+    ComptonSize:  10
+    LEScatterSize: 2
+    TouchDistance: 1
+    StoreLEScatter:   True
+    SemanticPriority: [1,0,2,3,4]
+    EnergyDepositThreshold: 0.0
+    RewriteInteractionID:  False
+    #WorldBoundMax: [-1.e20,-1.e20,-1.e20]
+    #WorldBoundMin: [ 1.e20, 1.e20, 1.e20]

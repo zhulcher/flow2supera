@@ -189,7 +189,7 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
         super().ConfigureFromText(txt)
 
 
-    def ReadEvent(self, data, verbose=False):
+    def ReadEvent(self, data, is_sim=True, verbose=False):
         
         start_time = time.time()
         read_event_start_time = start_time
@@ -200,269 +200,288 @@ class SuperaDriver(edep2supera.edep2supera.SuperaDriver):
                 self._log[key].append(0)
         supera_event = supera.EventInput()
 
-        assert data.trajectories is not None, '[SuperaDriver] ERROR data.trajectories is None'
+        self._edeps_unassociated.clear();
+        self._edeps_unassociated.reserve(len(data.hits))
+        if is_sim:
+            assert data.trajectories is not None, '[SuperaDriver] ERROR data.trajectories is None'
 
-        supera_event.reserve(len(data.trajectories))
+            supera_event.reserve(len(data.trajectories))
 
-        # Assuming your segment IDs are in a dataset named 'segment_ids'
-        segment_ids = data.segments['segment_id']  # Load the segment IDs into a NumPy array
-        self._segid2idx.reset(segment_ids)
+            # Assuming your segment IDs are in a dataset named 'segment_ids'
+            segment_ids = data.segments['segment_id']  # Load the segment IDs into a NumPy array
+            self._segid2idx.reset(segment_ids)
 
-        #
-        # Stage A ... Construct supera::ParticleInput
-        # 1. create a unique particle ID <=> particle index dictionary
-        # 2. Set supera::ParticleInput ID = particle index + fill individual particle information
-        # 3. Set supera::ParticleInput parent ID using the dictionary + set particle process type
-        # 4. Set supera::ParticleInput ancestor ID using the dictionary
-        #
+            #
+            # Stage A ... Construct supera::ParticleInput
+            # 1. create a unique particle ID <=> particle index dictionary
+            # 2. Set supera::ParticleInput ID = particle index + fill individual particle information
+            # 3. Set supera::ParticleInput parent ID using the dictionary + set particle process type
+            # 4. Set supera::ParticleInput ancestor ID using the dictionary
+            #
 
-        # Step A-1
-        trajectories_dict = {}
-        for index, traj in enumerate(data.trajectories):
-            key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
-            #trajectories_dict[key] = int(traj['file_traj_id'])
-            trajectories_dict[key] = index
-        # A-1 finished
-
-        # Step A-2
-        for index, traj in enumerate(data.trajectories):
-            
-            part_input = supera.ParticleInput()
-            part_input.id = index
-            part_input.valid = True
-            part_input.part  = self.TrajectoryToParticle(traj)#, trajectories_dict)
-
-            #if traj['file_traj_id'] < 0:
-            #    print('Negative track ID found',traj['file_traj_id'])
-            #    raise ValueError
-            #self._trackid2idx[traj['file_traj_id']] = part_input.part.id
-            supera_event.push_back(part_input)
-        # A-2 finished
-
-        # Stage A-3 
-        for index, traj in enumerate(data.trajectories):
-
-            part_input = supera_event[index]
-
-            key = (int(traj['parent_id']), int(traj['event_id']), int(traj['vertex_id']))
-            if traj['parent_id'] == -1:
+            # Step A-1
+            trajectories_dict = {}
+            for index, traj in enumerate(data.trajectories):
                 key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
+                #trajectories_dict[key] = int(traj['file_traj_id'])
+                trajectories_dict[key] = index
+            # A-1 finished
 
-            if not key in trajectories_dict:
-                raise ValueError(f'Parent trajectory with key {key} not found')
-            part_parent = supera_event[trajectories_dict[key]]
-            part_input.parent_id = part_parent.id
-            self.SetProcessType(traj, part_input, part_parent)
-        # A-3 finished
+            # Step A-2
+            for index, traj in enumerate(data.trajectories):
+                
+                part_input = supera.ParticleInput()
+                part_input.id = index
+                part_input.valid = True
+                part_input.part  = self.TrajectoryToParticle(traj)#, trajectories_dict)
 
-        # Stage A-4
-        for index, traj in enumerate(data.trajectories):
+                #if traj['file_traj_id'] < 0:
+                #    print('Negative track ID found',traj['file_traj_id'])
+                #    raise ValueError
+                #self._trackid2idx[traj['file_traj_id']] = part_input.part.id
+                supera_event.push_back(part_input)
+            # A-2 finished
 
-            ancestor = supera_event[index]
+            # Stage A-3 
+            for index, traj in enumerate(data.trajectories):
 
-            while not ancestor.id == ancestor.parent_id:
-                ancestor = supera_event[ancestor.parent_id]
+                part_input = supera_event[index]
 
-            supera_event[index].ancestor_id = ancestor.id
-        # A-4 finished
+                key = (int(traj['parent_id']), int(traj['event_id']), int(traj['vertex_id']))
+                if traj['parent_id'] == -1:
+                    key = (int(traj['traj_id']), int(traj['event_id']), int(traj['vertex_id']))
 
+                if not key in trajectories_dict:
+                    raise ValueError(f'Parent trajectory with key {key} not found')
+                part_parent = supera_event[trajectories_dict[key]]
+                part_input.parent_id = part_parent.id
+                self.SetProcessType(traj, part_input, part_parent)
+            # A-3 finished
 
-        if verbose:
-            print("--- trajectory filling %s seconds ---" % (time.time() - start_time))
+            # Stage A-4
+            for index, traj in enumerate(data.trajectories):
 
+                ancestor = supera_event[index]
 
-        #
-        # Stage B ... Construct supera::EDep and associate to supera::ParticleInput
-        #
+                while not ancestor.id == ancestor.parent_id:
+                    ancestor = supera_event[ancestor.parent_id]
 
-        start_time = time.time() 
-
-        # Define some objects that are repeatedly used within the loop
-        seg_pt0   = supera.Point3D()
-        seg_pt1   = supera.Point3D()
-        packet_pt = supera.Point3D()
-        poca_pt   = supera.Point3D()
-        seg_flag  = None
-        seg_dist  = None
-
-        # a list to keep energy depositions w/o true association
-        supera_event.unassociated_edeps.clear() 
-        supera_event.unassociated_edeps.reserve(len(data.hits))
-        self._edeps_all.clear();
-        self._edeps_all.reserve(len(data.hits))
-
-        check_raw_sum=0
-        check_ana_sum=0
-
-        backtracked_hits = data.backtracked_hits
-        # TODO Calculate the length of this in advance and use reserve; appending is slow!
-        for i_bt, bhit in enumerate(backtracked_hits):
-
-            reco_hit = data.hits[i_bt]
-
-            nonzero_index_v = np.where(bhit['fraction'] != 0.)[0]
-
-            # Record this packet
-            raw_edep = supera.EDep()
-            raw_edep.x, raw_edep.y, raw_edep.z = reco_hit['x'], reco_hit['y'], reco_hit['z']
-            raw_edep.e = reco_hit['E']
-            self._edeps_all.push_back(raw_edep)
-            check_raw_sum += reco_hit['E']
-
-            # We analyze and modify segments and fractions, so make a copy
-            packet_segments  = np.array(bhit['segment_ids'])
-            packet_fractions = np.array(bhit['fraction'  ])
-            packet_edeps = [None] * len(packet_segments)
-
-            #
-            # Check packet segments quality
-            # - any association?
-            # - Saturated?
-            # - nan?
-            if (packet_fractions == 0.).sum() == len(packet_segments):
-                if verbose > 0:
-                    print('[WARNING] found a packet with no association!')
-                if not self._log is None:
-                    self._log['packet_noass_input'][-1] += 1
-            if not 0. in packet_fractions:
-                if verbose > 1:
-                    print('[INFO] found',len(packet_segments),'associated track IDs maxing out the recording array size')
-                if not self._log is None:
-                    self._log['ass_saturation'][-1] += 1
-            if np.isnan(packet_fractions).sum() > 0:
-                print('    [ERROR]: found nan in fractions of a packet:', packet_fractions)
-                if not self._log is None:
-                    self._log['fraction_nan'][-1] += 1
+                supera_event[index].ancestor_id = ancestor.id
+            # A-4 finished
 
 
-            # Initialize seg_flag once 
-            if seg_flag is None:
-                seg_flag = np.zeros(len(packet_segments),bool)
-
-
-            if not self._log is None:
-                self._log['packet_frac_sum'][-1] += packet_fractions[seg_flag].sum()
+            if verbose:
+                print("--- trajectory filling %s seconds ---" % (time.time() - start_time))
 
 
             #
-            # Identify packets to ignore
+            # Stage B ... Construct supera::EDep and associate to supera::ParticleInput
             #
-            seg_flag = ~(np.isnan(packet_fractions))
-            # 0. mask zero fraction index
-            seg_flag = seg_flag & (packet_fractions > 0.)
-            # 1. mask too small fraction
-            seg_flag = seg_flag & (packet_fractions > self._ass_fraction_limit)
-            # 2. with too small (true energy * fraction)
-            seg_flag = seg_flag & ((packet_fractions * raw_edep.e) > self._ass_charge_limit)
 
-            # Step 1. Compute the distance and reject some segments (see above comments for details)
-            for it in range(packet_segments.shape[0]):
-                if not seg_flag[it]:
-                    continue
-                seg_idx = self._segid2idx[packet_segments[it]]
-                # Access the segment
-                seg = data.segments[seg_idx]
-                # Compute the Point of Closest Approach as well as estimation of time.
-                edep = supera.EDep()
-                seg_pt0.x, seg_pt0.y, seg_pt0.z = seg['x_start'], seg['y_start'], seg['z_start']
-                seg_pt1.x, seg_pt1.y, seg_pt1.z = seg['x_end'], seg['y_end'], seg['z_end']
-                packet_pt.x, packet_pt.y, packet_pt.z = raw_edep.x, raw_edep.y, raw_edep.z
+            start_time = time.time() 
 
-                if seg['t0_start'] < seg['t0_end']:
-                    time_frac = self.PoCA(seg_pt0,seg_pt1,packet_pt,scalar=True)
-                    edep.t = seg['t0_start'] + time_frac * (seg['t0_end'  ] - seg['t0_start'])
-                    poca_pt = seg_pt0 + (seg_pt1 - seg_pt0) * time_frac
+            # Define some objects that are repeatedly used within the loop
+            seg_pt0   = supera.Point3D()
+            seg_pt1   = supera.Point3D()
+            packet_pt = supera.Point3D()
+            poca_pt   = supera.Point3D()
+            seg_flag  = None
+            seg_dist  = None
+
+            # a list to keep energy depositions w/o true association
+            supera_event.unassociated_edeps.clear() 
+            supera_event.unassociated_edeps.reserve(len(data.hits))
+            self._edeps_all.clear();
+            self._edeps_all.reserve(len(data.hits))
+            
+
+            check_raw_sum=0
+            check_ana_sum=0
+
+            backtracked_hits = data.backtracked_hits
+            # TODO Calculate the length of this in advance and use reserve; appending is slow!
+            for i_bt, bhit in enumerate(backtracked_hits):
+
+                reco_hit = data.hits[i_bt]
+
+                nonzero_index_v = np.where(bhit['fraction'] != 0.)[0]
+
+                # Record this packet
+                raw_edep = supera.EDep()
+                raw_edep.x, raw_edep.y, raw_edep.z = reco_hit['x'], reco_hit['y'], reco_hit['z']
+                raw_edep.e = reco_hit['E']
+                self._edeps_all.push_back(raw_edep)
+                check_raw_sum += reco_hit['E']
+
+                # We analyze and modify segments and fractions, so make a copy
+                packet_segments  = np.array(bhit['segment_ids'])
+                packet_fractions = np.array(bhit['fraction'  ])
+                packet_edeps = [None] * len(packet_segments)
+
+                #
+                # Check packet segments quality
+                # - any association?
+                # - Saturated?
+                # - nan?
+                if (packet_fractions == 0.).sum() == len(packet_segments):
+                    if verbose > 0:
+                        print('[WARNING] found a packet with no association!')
+                    if not self._log is None:
+                        self._log['packet_noass_input'][-1] += 1
+                if not 0. in packet_fractions:
+                    if verbose > 1:
+                        print('[INFO] found',len(packet_segments),'associated track IDs maxing out the recording array size')
+                    if not self._log is None:
+                        self._log['ass_saturation'][-1] += 1
+                if np.isnan(packet_fractions).sum() > 0:
+                    print('    [ERROR]: found nan in fractions of a packet:', packet_fractions)
+                    if not self._log is None:
+                        self._log['fraction_nan'][-1] += 1
+
+
+                # Initialize seg_flag once 
+                if seg_flag is None:
+                    seg_flag = np.zeros(len(packet_segments),bool)
+
+
+                if not self._log is None:
+                    self._log['packet_frac_sum'][-1] += packet_fractions[seg_flag].sum()
+
+
+                #
+                # Identify packets to ignore
+                #
+                seg_flag = ~(np.isnan(packet_fractions))
+                # 0. mask zero fraction index
+                seg_flag = seg_flag & (packet_fractions > 0.)
+                # 1. mask too small fraction
+                seg_flag = seg_flag & (packet_fractions > self._ass_fraction_limit)
+                # 2. with too small (true energy * fraction)
+                seg_flag = seg_flag & ((packet_fractions * raw_edep.e) > self._ass_charge_limit)
+
+                # Step 1. Compute the distance and reject some segments (see above comments for details)
+                for it in range(packet_segments.shape[0]):
+                    if not seg_flag[it]:
+                        continue
+                    seg_idx = self._segid2idx[packet_segments[it]]
+                    # Access the segment
+                    seg = data.segments[seg_idx]
+                    # Compute the Point of Closest Approach as well as estimation of time.
+                    edep = supera.EDep()
+                    seg_pt0.x, seg_pt0.y, seg_pt0.z = seg['x_start'], seg['y_start'], seg['z_start']
+                    seg_pt1.x, seg_pt1.y, seg_pt1.z = seg['x_end'], seg['y_end'], seg['z_end']
+                    packet_pt.x, packet_pt.y, packet_pt.z = raw_edep.x, raw_edep.y, raw_edep.z
+
+                    if seg['t0_start'] < seg['t0_end']:
+                        time_frac = self.PoCA(seg_pt0,seg_pt1,packet_pt,scalar=True)
+                        edep.t = seg['t0_start'] + time_frac * (seg['t0_end'  ] - seg['t0_start'])
+                        poca_pt = seg_pt0 + (seg_pt1 - seg_pt0) * time_frac
+
+                    else:
+                        time_frac = self.PoCA(seg_pt1,seg_pt0,packet_pt,scalar=True)
+                        edep.t = seg['t0_end'  ] + time_frac * (seg['t0_start'] - seg['t0_end'  ])
+                        poca_pt = seg_pt1 + (seg_pt0 - seg_pt1) * time_frac
+
+                    seg_dist = poca_pt.distance(packet_pt)
+
+                    edep.x, edep.y, edep.z = packet_pt.x, packet_pt.y, packet_pt.z
+                    edep.dedx = seg['dEdx']
+                    packet_edeps[it] = edep
+
+
+                # split the energy among valid, associated packets
+                if seg_flag.sum() < 1:
+                    # no valid association
+                    supera_event.unassociated_edeps.push_back(raw_edep)
+                    check_ana_sum += raw_edep.e
+                    if not self._log is None:
+                        self._log['drop_ctr_total'][-1] += 1
 
                 else:
-                    time_frac = self.PoCA(seg_pt1,seg_pt0,packet_pt,scalar=True)
-                    edep.t = seg['t0_end'  ] + time_frac * (seg['t0_start'] - seg['t0_end'  ])
-                    poca_pt = seg_pt1 + (seg_pt0 - seg_pt1) * time_frac
+                    # Re-compute the fractions
+                    fsum=packet_fractions[seg_flag].sum()
+                    #packet_fractions[~seg_flag] = 0. 
+                    if fsum<=0:
+                        print(packet_fractions)
+                        print(seg_flag)
+                        raise ValueError(f'Unexpected: the sum of masked fractions is {fsum} but must be >0 ... {packet_fractions}')
+                        #packet_fractions[seg_flag] /= seg_flag.sum()
+                    packet_fractions[seg_flag] /= fsum
 
-                seg_dist = poca_pt.distance(packet_pt)
+                    for idx in np.where(seg_flag)[0]:
+                        seg_idx = self._segid2idx[packet_segments[idx]]
+                        seg = data.segments[seg_idx]
+                        packet_edeps[idx].e = raw_edep.e * packet_fractions[idx]
+                        key = (int(seg['traj_id']), int(seg['event_id']), int(seg['vertex_id']))
+                        supera_event[trajectories_dict[key]].pcloud.push_back(packet_edeps[idx])
+                        check_ana_sum += packet_edeps[idx].e
+                    if not self._log is None:
+                        self._log['ass_charge_frac'][-1] += fsum
+                        self._log['ass_frac'][-1] += 1
 
-                edep.x, edep.y, edep.z = packet_pt.x, packet_pt.y, packet_pt.z
-                edep.dedx = seg['dEdx']
-                packet_edeps[it] = edep
+                # if verbose > 1:
+                #     print('[INFO] Assessing packet',ip)
+                #     print('       Associated?',seg_flag.sum())
+                #     print('       Segments :', packet_segments)
+                #     print('       TrackIDs :', [data.segments[self._segid2idx[packet_segments[idx]]]['traj_id'] for idx in range(packet_segments.shape[0])])
+                #     print('       Fractions:', ['%.3f' % f for f in packet_fractions])
+                #     print('       Energy   : %.3f' % dE[ip])
+                #     print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
+                #     print('       Distance :', ['%.3f' % f for f in seg_dist])
+
+            if verbose:
+                print("--- filling edep %s seconds ---" % (time.time() - start_time))
+
+            start_time = time.time()
+            for sp in supera_event:
+                pts = np.array([[pt.x,pt.y,pt.z,pt.e] for pt in sp.pcloud])
+                if len(pts)<1:
+                    continue
+                self._dbscan.fit(pts[:,:3])
+                ids,sizes=np.unique(self._dbscan.labels_,return_counts=True)
+
+                # if only 1 cluster, nothing needs to be done
+                if len(ids)==1:
+                    continue
+
+                # otherwise, keep the largest cluster and any other cluster larger than the LEScatter limit
+                mask = (sizes == np.max(sizes))
+                mask = (mask | (sizes >= self._cluster_size_limit))
+
+                # if all voxels are to be kept, continue
+                if mask.sum() == len(mask):
+                    continue
+
+                ids_to_keep = ids[mask]
+                mask = np.zeros(len(pts),dtype=bool)
+                for cid in ids_to_keep:
+                    mask = mask | (self._dbscan.labels_ == cid)
+
+                pcloud = std.vector('supera::EDep')()
+                pcloud.reserve(int(mask.sum()))
+                for edep_idx in np.where(mask)[0]:
+                    pcloud.push_back(sp.pcloud[int(edep_idx)])
+
+                supera_event.unassociated_edeps.reserve(supera_event.unassociated_edeps.size()+int((~mask).sum()))
+                for edep_idx in np.where(~mask)[0]:
+                    supera_event.unassociated_edeps.push_back(sp.pcloud[int(edep_idx)])
+
+                sp.pcloud = pcloud
 
 
-            # split the energy among valid, associated packets
-            if seg_flag.sum() < 1:
-                # no valid association
-                supera_event.unassociated_edeps.push_back(raw_edep)
-                check_ana_sum += raw_edep.e
-                if not self._log is None:
-                    self._log['drop_ctr_total'][-1] += 1
+        if not is_sim:
+            hits = data.hits
+            for hit in hits:
+                edep = supera.EDep()
+                edep.x = hit['x']
+                edep.y = hit['y']
+                edep.z = hit['z']
+                edep.t = hit['t_drift']
+                edep.e = hit['E']
+                self._edeps_unassociated.push_back(edep)
 
-            else:
-                # Re-compute the fractions
-                fsum=packet_fractions[seg_flag].sum()
-                #packet_fractions[~seg_flag] = 0. 
-                if fsum<=0:
-                    print(packet_fractions)
-                    print(seg_flag)
-                    raise ValueError(f'Unexpected: the sum of masked fractions is {fsum} but must be >0 ... {packet_fractions}')
-                    #packet_fractions[seg_flag] /= seg_flag.sum()
-                packet_fractions[seg_flag] /= fsum
-
-                for idx in np.where(seg_flag)[0]:
-                    seg_idx = self._segid2idx[packet_segments[idx]]
-                    seg = data.segments[seg_idx]
-                    packet_edeps[idx].e = raw_edep.e * packet_fractions[idx]
-                    key = (int(seg['traj_id']), int(seg['event_id']), int(seg['vertex_id']))
-                    supera_event[trajectories_dict[key]].pcloud.push_back(packet_edeps[idx])
-                    check_ana_sum += packet_edeps[idx].e
-                if not self._log is None:
-                    self._log['ass_charge_frac'][-1] += fsum
-                    self._log['ass_frac'][-1] += 1
-
-            # if verbose > 1:
-            #     print('[INFO] Assessing packet',ip)
-            #     print('       Associated?',seg_flag.sum())
-            #     print('       Segments :', packet_segments)
-            #     print('       TrackIDs :', [data.segments[self._segid2idx[packet_segments[idx]]]['traj_id'] for idx in range(packet_segments.shape[0])])
-            #     print('       Fractions:', ['%.3f' % f for f in packet_fractions])
-            #     print('       Energy   : %.3f' % dE[ip])
-            #     print('       Position :', ['%.3f' % f for f in [x[ip]*self._mm2cm,y[ip]*self._mm2cm,z[ip]*self._mm2cm]])
-            #     print('       Distance :', ['%.3f' % f for f in seg_dist])
-
-        if verbose:
-            print("--- filling edep %s seconds ---" % (time.time() - start_time))
-
-        start_time = time.time()
-        for sp in supera_event:
-            pts = np.array([[pt.x,pt.y,pt.z,pt.e] for pt in sp.pcloud])
-            if len(pts)<1:
-                continue
-            self._dbscan.fit(pts[:,:3])
-            ids,sizes=np.unique(self._dbscan.labels_,return_counts=True)
-
-            # if only 1 cluster, nothing needs to be done
-            if len(ids)==1:
-                continue
-
-            # otherwise, keep the largest cluster and any other cluster larger than the LEScatter limit
-            mask = (sizes == np.max(sizes))
-            mask = (mask | (sizes >= self._cluster_size_limit))
-
-            # if all voxels are to be kept, continue
-            if mask.sum() == len(mask):
-                continue
-
-            ids_to_keep = ids[mask]
-            mask = np.zeros(len(pts),dtype=bool)
-            for cid in ids_to_keep:
-                mask = mask | (self._dbscan.labels_ == cid)
-
-            pcloud = std.vector('supera::EDep')()
-            pcloud.reserve(int(mask.sum()))
-            for edep_idx in np.where(mask)[0]:
-                pcloud.push_back(sp.pcloud[int(edep_idx)])
-
-            supera_event.unassociated_edeps.reserve(supera_event.unassociated_edeps.size()+int((~mask).sum()))
-            for edep_idx in np.where(~mask)[0]:
-                supera_event.unassociated_edeps.push_back(sp.pcloud[int(edep_idx)])
-
-            sp.pcloud = pcloud
+        supera_event.unassociated_edeps = self._edeps_unassociated
+        
 
         if verbose:
             print("--- Finising ReadEvent %s seconds ---" % (time.time() - read_event_start_time))

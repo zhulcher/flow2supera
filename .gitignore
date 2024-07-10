@@ -136,3 +136,4 @@ todo.txt
 *.txt
 *.root
 *.backup
+*.hdf5
