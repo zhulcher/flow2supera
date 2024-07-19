@@ -13,13 +13,12 @@ python3 -m pip install .
 
 # Usage
 
-The main executable script is located at `bin/run_flow2supera.py` relative to the top directory. The _required_ arguments are the input and output file names:
+The main executable script is located at `bin/run_flow2supera.py` relative to the top directory. The _required_ arguments are the input and output file names and the configuration:
 ```
 python3 bin/run_flow2supera.py -o <output_file> -c 2x2 <input_ndlar_flow_file>
 ```
-
+Configuration keyword or a file path (full or relative including the file name). Supported configurations: `2x2`, `2x2_data`, `mod1_data`, `2x2_mpvmpr`.
 You can also specify the following _optional_ arguments:
-- `-c` or `--config`: Configuration keyword or a file path (full or relative including the file name). Supported configurations: `2x2`, `mod1_data`, `2x2_mpvmpr`.
 - `-n` or `--num_events`: Number of events to process.
 - `-s` or `--skip`: Number of first events to skip.
 - `-l` or `--log`: Name of a log file to be created.
